@@ -16,10 +16,10 @@ Even though the program has very little functionality and is very simple, I do w
 ## Installation
 Currently only Linux is supported.
 
-You can download the binary through the [Releases](https://github.com/c0nradLC/homodoro/releases). You can run it directly where it was download or put it in a directory present in your `PATH`.
+You can download the binary through the [Releases](https://github.com/c0nradLC/homodoro/releases). You can run it directly where it was downloaded or put it in a directory present in your `PATH`.
 
 ## Usage
-Just run `homodoro` and you should see the program running.
+Just run `homodoro` and you should see the timer and the task list.
 
 Other than the commands that are shown in the screen, you can check the [List](https://hackage.haskell.org/package/brick-2.3.1/docs/Brick-Widgets-List.html#g:3) and [Editor](https://hackage.haskell.org/package/brick-2.3.1/docs/Brick-Widgets-Edit.html) commands in the Brick documentation for each of the Widgets.
 

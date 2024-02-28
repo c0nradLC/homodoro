@@ -1,6 +1,10 @@
 # homodoro
 A very simple terminal application to use the pomodoro technique and keep track of daily tasks.
 
+<p align="center">
+  <img alt="example usage of homodoro" src="./media/homodoro.gif">
+</p>
+
 ## Contents
 - [About the project](#about-the-project)
 - [Installation](#installation)

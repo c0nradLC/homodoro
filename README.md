@@ -24,6 +24,8 @@ Currently only Linux is supported.
 
 You can download the binary through the [Releases](https://github.com/c0nradLC/homodoro/releases). You can run it directly where it was downloaded or put it in a directory present in your `PATH`.
 
+You can also build and install from source, you just need to clone this repo and build/install with [Stack](https://docs.haskellstack.org/en/stable/).
+
 ## Usage
 Just run `homodoro` and you should see the timer and the task list.
 

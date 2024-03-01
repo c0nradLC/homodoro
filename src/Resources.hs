@@ -2,11 +2,16 @@
 
 module Resources
   ( Name (..),
+    Timer (..),
     AppState (..),
     Tick (..),
     timerRunning,
-    currentTimer,
-    initialTimer,
+    pomodoroTimer,
+    shortBreakTimer,
+    longBreakTimer,
+    shortBreakInitialTimer,
+    longBreakInitialTimer,
+    pomodoroInitialTimer,
     taskEditor,
     taskList,
     focus,
@@ -20,10 +25,15 @@ import Control.Lens
 import qualified Data.Text as Txt
 import qualified Task.Task as TK
 
+data Timer = Pomodoro
+  | ShortBreak
+  | LongBreak
+  deriving (Show, Eq, Ord)
+
 data Name
   = TaskInsert
   | TaskEdit
-  | TaskList
+  | TaskList Timer
   | Commands
   deriving (Show, Eq, Ord)
 
@@ -31,8 +41,12 @@ data Tick = Tick
 
 data AppState = AppState
   { _timerRunning :: Bool,
-    _currentTimer :: Int,
-    _initialTimer :: Int,
+    _pomodoroTimer :: Int,
+    _shortBreakTimer :: Int,
+    _longBreakTimer :: Int,
+    _pomodoroInitialTimer :: Int,
+    _shortBreakInitialTimer :: Int,
+    _longBreakInitialTimer :: Int,
     _taskEditor :: Editor Txt.Text Name,
     _taskList :: BL.List Name TK.Task,
     _focus :: BF.FocusRing Name

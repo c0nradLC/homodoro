@@ -3,6 +3,7 @@ module UI.Attributes
     timerAttr,
     taskEditorAttr,
     selectedTaskAttr,
+    selectedTimerAttr
   )
 where
 
@@ -15,7 +16,8 @@ attributes =
     V.defAttr
     [ (timerAttr, V.black `on` V.white),
       (taskEditorAttr, V.black `on` V.white),
-      (selectedTaskAttr, V.black `on` V.white)
+      (selectedTaskAttr, V.black `on` V.white),
+      (selectedTimerAttr, V.black `on` V.white)
     ]
 
 timerAttr :: AttrName
@@ -26,3 +28,6 @@ taskEditorAttr = attrName "taskEditor"
 
 selectedTaskAttr :: AttrName
 selectedTaskAttr = attrName "selectedTaskAttr"
+
+selectedTimerAttr :: AttrName
+selectedTimerAttr = attrName "selectedTimerAttr"

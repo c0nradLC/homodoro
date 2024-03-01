@@ -31,11 +31,11 @@ import System.IO (hClose)
 import System.IO.Temp (withSystemTempFile)
 import Resources (AppState, Name)
 
-alertRoundEnded :: EventM Name AppState ()
-alertRoundEnded = do
+alertRoundEnded :: String -> EventM Name AppState ()
+alertRoundEnded msg = do
   notificationServerInitiated <- GI.init $ Just $ pack "homodoro"
   when notificationServerInitiated $ do
-    notification <- GI.notificationNew (pack "homodoro") (Just $ pack "Pomodoro round ended!") Nothing
+    notification <- GI.notificationNew (pack "homodoro") (Just $ pack msg) Nothing
     GI.notificationShow notification
 
 playAlertSound :: IO ()

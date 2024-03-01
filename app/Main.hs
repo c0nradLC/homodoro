@@ -1,6 +1,6 @@
 module Main (main) where
 
-import UI.App (uiMain)
+import UI.UI (uiMain)
 
 main :: IO ()
-main = UI.App.uiMain
+main = UI.UI.uiMain

@@ -13,6 +13,20 @@ import Data.FileEmbed (embedFileRelative)
 import Data.Text (pack)
 import qualified GI.Notify as GI
 import Sound.ALUT
+    ( runALUT,
+      withProgNameAndArgs,
+      createBuffer,
+      sleep,
+      buffer,
+      play,
+      rewind,
+      sourceState,
+      SoundDataSource(File),
+      GeneratableObjectName(genObjectName),
+      Buffer,
+      SourceState(Playing),
+      HasGetter(get),
+      HasSetter(($=)) )
 import System.IO (hClose)
 import System.IO.Temp (withSystemTempFile)
 import Resources (AppState, Name)

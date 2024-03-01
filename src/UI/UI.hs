@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module UI.App (uiMain) where
+module UI.UI (uiMain) where
 
 import Brick
   ( App (..),
@@ -236,7 +236,7 @@ drawUI s =
     currentFocus@(Just TaskInsert) -> [B.border (C.hCenter $ hBox [drawTimer s <=> drawTaskList s] <=> drawTaskEditor s) <=> drawCommands currentFocus]
     currentFocus@(Just TaskEdit) -> [B.border (C.hCenter $ hBox [drawTimer s <=> drawTaskList s] <=> drawTaskEditor s) <=> drawCommands currentFocus]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
-    _ -> [B.border (C.hCenter $ hBox [drawTimer s <=> drawTaskList s]) <=> drawCommandsTip]
+    _ -> [B.border $ C.hCenter $ drawTimer s <=> drawTaskList s <=> drawCommandsTip]
 
 drawTimer :: AppState -> Widget Name
 drawTimer s =

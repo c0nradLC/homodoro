@@ -12,24 +12,25 @@ import Data.ByteString (ByteString, hPut)
 import Data.FileEmbed (embedFileRelative)
 import Data.Text (pack)
 import qualified GI.Notify as GI
+import Resources (AppState, Name)
 import Sound.ALUT
-    ( runALUT,
-      withProgNameAndArgs,
-      createBuffer,
-      sleep,
-      buffer,
-      play,
-      rewind,
-      sourceState,
-      SoundDataSource(File),
-      GeneratableObjectName(genObjectName),
-      Buffer,
-      SourceState(Playing),
-      HasGetter(get),
-      HasSetter(($=)) )
+  ( Buffer,
+    GeneratableObjectName (genObjectName),
+    HasGetter (get),
+    HasSetter (($=)),
+    SoundDataSource (File),
+    SourceState (Playing),
+    buffer,
+    createBuffer,
+    play,
+    rewind,
+    runALUT,
+    sleep,
+    sourceState,
+    withProgNameAndArgs,
+  )
 import System.IO (hClose)
 import System.IO.Temp (withSystemTempFile)
-import Resources (AppState, Name)
 
 alertRoundEnded :: String -> EventM Name AppState ()
 alertRoundEnded msg = do

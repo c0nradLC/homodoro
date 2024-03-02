@@ -9,18 +9,23 @@ import Brick
     Padding (Pad),
     Widget,
     customMain,
+    emptyWidget,
     hBox,
     halt,
     padLeft,
+    padLeftRight,
     padTop,
+    padTopBottom,
     showFirstCursor,
     str,
+    strWrap,
     txt,
     txtWrap,
     vBox,
     withAttr,
     withBorderStyle,
-    (<=>), (<+>), padTopBottom, strWrap, emptyWidget, padLeftRight,
+    (<+>),
+    (<=>),
   )
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Focus as BF
@@ -41,7 +46,8 @@ import Control.Monad.State
   ( MonadIO (liftIO),
     MonadState (get),
     forever,
-    void, when,
+    void,
+    when,
   )
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as Txt
@@ -49,27 +55,32 @@ import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty.Input.Events as VE
 import qualified Notify as NT
-import qualified Task.File as TKF
-import qualified Task.Task as TK
-import Text.Printf (printf)
 import Resources
   ( AppState (..),
     Name (..),
     Tick (..),
-    pomodoroTimer,
+    Timer (LongBreak, Pomodoro, ShortBreak),
     focus,
+    longBreakInitialTimer,
+    longBreakTimer,
     pomodoroInitialTimer,
+    pomodoroTimer,
     shortBreakInitialTimer,
-    timerRunning,
+    shortBreakTimer,
     taskEditor,
-    taskList, Timer (Pomodoro, ShortBreak, LongBreak), shortBreakTimer, longBreakTimer, longBreakInitialTimer,
+    taskList,
+    timerRunning,
   )
+import Task.File (TaskListOperation (..))
+import qualified Task.File as TKF
+import qualified Task.Task as TK
+import Text.Printf (printf)
 import UI.Attributes
   ( attributes,
     selectedTaskAttr,
-    timerAttr, selectedTimerAttr,
+    selectedTimerAttr,
+    timerAttr,
   )
-import Task.File (TaskListOperation(..))
 
 uiMain :: IO ()
 uiMain = do
@@ -225,9 +236,9 @@ handleEvent ev =
             (V.KBackTab, []) -> do
               timerRunning .= False
               case cfs of
-                TaskList Pomodoro -> focus .= BF.focusSetCurrent (TaskList ShortBreak) (s ^.focus)  
-                TaskList ShortBreak -> focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^.focus)  
-                TaskList LongBreak -> focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^.focus)  
+                TaskList Pomodoro -> focus .= BF.focusSetCurrent (TaskList ShortBreak) (s ^. focus)
+                TaskList ShortBreak -> focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
+                TaskList LongBreak -> focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
             (V.KChar 'e', []) -> do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
@@ -250,9 +261,10 @@ handleEvent ev =
                   modifiedTaskList <- liftIO $ TKF.writeTasks TKF.updateTaskList (DeleteTask selectedTask)
                   if selectedIndex - 1 == length modifiedTaskList
                     then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
-                  else if selectedIndex == 0
-                    then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just 0) (s ^. taskList)
-                  else taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just $ length modifiedTaskList - 1) (s ^. taskList)
+                    else
+                      if selectedIndex == 0
+                        then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just 0) (s ^. taskList)
+                        else taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just $ length modifiedTaskList - 1) (s ^. taskList)
                 Nothing -> return ()
             (V.KIns, []) -> do
               focus .= BF.focusSetCurrent TaskInsert (s ^. focus)
@@ -265,10 +277,10 @@ handleEvent ev =
 tickTimer :: AppState -> EventM Name AppState ()
 tickTimer s
   | s ^. timerRunning = case BF.focusGetCurrent (s ^. focus) of
-                          Just (TaskList Pomodoro) -> pomodoroTimer .= max ((s ^. pomodoroTimer) - 1) 0
-                          Just (TaskList ShortBreak) -> shortBreakTimer .= max ((s ^. shortBreakTimer) - 1) 0 
-                          Just (TaskList LongBreak) -> longBreakTimer .= max ((s ^. longBreakTimer) - 1) 0 
-                          _ -> return ()
+      Just (TaskList Pomodoro) -> pomodoroTimer .= max ((s ^. pomodoroTimer) - 1) 0
+      Just (TaskList ShortBreak) -> shortBreakTimer .= max ((s ^. shortBreakTimer) - 1) 0
+      Just (TaskList LongBreak) -> longBreakTimer .= max ((s ^. longBreakTimer) - 1) 0
+      _ -> return ()
   | otherwise = return ()
 
 checkTimerEnded :: AppState -> EventM Name AppState ()
@@ -316,9 +328,9 @@ drawTimers s =
 drawTimer :: Int -> Widget Name
 drawTimer timerDuration =
   padTopBottom 2 $
-      withAttr timerAttr $
-        str $
-          formatTimer timerDuration
+    withAttr timerAttr $
+      str $
+        formatTimer timerDuration
 
 drawCommandsTip :: Widget Name
 drawCommandsTip = C.hCenter $ str "press c to see the commands"
@@ -326,16 +338,17 @@ drawCommandsTip = C.hCenter $ str "press c to see the commands"
 drawCommandsScreen :: Widget Name
 drawCommandsScreen =
   C.hCenter $
-      str
-        " q        -> Quit application \n \
-        \s        -> Start/Stop timer\n \
-        \r        -> Reset timer\n \
-        \i/d      -> Increase/Decrease timer by 1min\n \
-        \I/D      -> Increased/Decrease timer by 10sec\n \
-        \Insert   -> Add a task\n \
-        \e        -> Edit a task\n \
-        \Del      -> Delete a task\n \
-        \Ctrl + C -> Change a task's status\n"
+    str
+      " q           -> Quit application \n \
+      \Shift + Tab -> Go to next timer \n \
+      \s           -> Start/Stop timer\n \
+      \r           -> Reset timer\n \
+      \i/d         -> Increase/Decrease timer by 1min\n \
+      \I/D         -> Increased/Decrease timer by 10sec\n \
+      \Insert      -> Add a task\n \
+      \e           -> Edit a task\n \
+      \Del         -> Delete a task\n \
+      \Ctrl + C    -> Change a task's status\n"
 
 drawCommands :: Maybe Name -> Widget Name
 drawCommands currentFocus = do
@@ -347,9 +360,9 @@ drawCommands currentFocus = do
 drawTaskEditor :: AppState -> Widget Name
 drawTaskEditor s =
   padTop (Pad 1) $
-      C.hCenter $
-        B.borderWithLabel (str "Task") $
-          renderEditor drawTaskInsertorContent (BF.focusGetCurrent (s ^. focus) == Just TaskInsert) (s ^. taskEditor)
+    C.hCenter $
+      B.borderWithLabel (str "Task") $
+        renderEditor drawTaskInsertorContent (BF.focusGetCurrent (s ^. focus) == Just TaskInsert) (s ^. taskEditor)
 
 drawTaskInsertorContent :: [Txt.Text] -> Widget Name
 drawTaskInsertorContent t = txt (Txt.unlines t)

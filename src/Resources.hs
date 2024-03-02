@@ -25,7 +25,8 @@ import Control.Lens
 import qualified Data.Text as Txt
 import qualified Task.Task as TK
 
-data Timer = Pomodoro
+data Timer
+  = Pomodoro
   | ShortBreak
   | LongBreak
   deriving (Show, Eq, Ord)

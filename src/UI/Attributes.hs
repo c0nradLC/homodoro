@@ -3,7 +3,7 @@ module UI.Attributes
     timerAttr,
     taskEditorAttr,
     selectedTaskAttr,
-    selectedTimerAttr
+    selectedTimerAttr,
   )
 where
 

@@ -7,7 +7,7 @@ module Task.File
     taskExists,
     getTasks,
     writeTasks,
-    TaskListOperation (..)
+    TaskListOperation (..),
   )
 where
 
@@ -20,10 +20,11 @@ import qualified System.Directory as D
 import qualified System.FilePath as FP
 import qualified Task.Task as TK (Task (..), taskCompleted, taskContent)
 
-data TaskListOperation = AppendTask TK.Task
-                       | DeleteTask TK.Task
-                       | EditTask TK.Task T.Text
-                       | ChangeTaskCompletion TK.Task
+data TaskListOperation
+  = AppendTask TK.Task
+  | DeleteTask TK.Task
+  | EditTask TK.Task T.Text
+  | ChangeTaskCompletion TK.Task
 
 type TaskListUpdate = TaskListOperation -> [TK.Task] -> [TK.Task]
 
@@ -58,7 +59,8 @@ updateTaskList (ChangeTaskCompletion targetTask) tasks = over (traversed . filte
   where
     toggleCompletion = TK.taskCompleted %~ not
 updateTaskList (EditTask task newContent) taskList = over (traversed . filtered (== task)) editTaskContent taskList
-  where editTaskContent = TK.taskContent .~ newContent
+  where
+    editTaskContent = TK.taskContent .~ newContent
 updateTaskList _ taskList = taskList
 
 taskExists :: T.Text -> IO Bool

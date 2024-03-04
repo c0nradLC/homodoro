@@ -69,7 +69,7 @@ import Resources
     shortBreakTimer,
     taskEditor,
     taskList,
-    timerRunning, pomodoroCycleCounter,
+    timerRunning, pomodoroCycleCounter, TaskAction (Insert, Edit),
   )
 import Task.File (TaskListOperation (..))
 import qualified Task.File as TKF
@@ -118,8 +118,8 @@ createAppStateWithTasks
             _shortBreakTimer = shortBreakTimerDuration,
             _longBreakInitialTimer = longBreakTimerDuration,
             _longBreakTimer = longBreakTimerDuration,
-            _taskEditor = editor TaskEdit (Just 5) "",
-            _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskInsert, TaskEdit, Commands],
+            _taskEditor = editor (TaskEdit Insert) (Just 5) "",
+            _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskEdit Insert, TaskEdit Edit, Commands],
             _taskList = taskListWidget
           }
 
@@ -142,7 +142,7 @@ handleEvent ev =
     (VtyEvent vev@(VE.EvKey k ms)) -> do
       s <- get
       case BF.focusGetCurrent $ s ^. focus of
-        Just TaskInsert ->
+        Just (TaskEdit Insert) ->
           case (k, ms) of
             (V.KIns, []) -> do
               let insertedContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
@@ -152,16 +152,16 @@ handleEvent ev =
                   let task = TK.mkTask insertedContent $ Just False
                   taskList .= BL.listInsert (length $ s ^. taskList) task (s ^. taskList)
                   _ <- liftIO $ TKF.writeTasks TKF.updateTaskList (AppendTask task)
-                  taskEditor .= editor TaskInsert (Just 5) ""
+                  taskEditor .= editor (TaskEdit Insert) (Just 5) ""
                   focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
                 else do
-                  taskEditor .= editor TaskInsert (Just 5) ""
+                  taskEditor .= editor (TaskEdit Insert) (Just 5) ""
                   focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
             (V.KEsc, []) -> do
               focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
             _ -> do
               BT.zoom taskEditor $ BE.handleEditorEvent ev
-        Just TaskEdit ->
+        Just (TaskEdit Edit) ->
           case (k, ms) of
             (V.KIns, []) -> do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
@@ -172,11 +172,11 @@ handleEvent ev =
                   when (not taskAlreadyExists && not (Txt.null editedContent)) $ do
                     modifiedTaskList <- liftIO $ TKF.writeTasks TKF.updateTaskList (EditTask selectedTask editedContent)
                     taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
-                    taskEditor .= editor TaskEdit (Just 5) ""
+                    taskEditor .= editor (TaskEdit Edit) (Just 5) ""
                     focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
                 Nothing -> return ()
             (V.KEsc, []) -> do
-              taskEditor .= editor TaskInsert (Just 5) ""
+              taskEditor .= editor (TaskEdit Insert) (Just 5) ""
               focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
             _ -> do
               BT.zoom taskEditor $ BE.handleEditorEvent ev
@@ -248,8 +248,8 @@ handleEvent ev =
               case selectedListTask of
                 Just (_, selectedTask) -> do
                   let selectedTaskContent = selectedTask ^. TK.taskContent
-                  taskEditor .= editor TaskEdit (Just 5) selectedTaskContent
-                  focus .= BF.focusSetCurrent TaskEdit (s ^. focus)
+                  taskEditor .= editor (TaskEdit Edit) (Just 5) selectedTaskContent
+                  focus .= BF.focusSetCurrent (TaskEdit Edit) (s ^. focus)
                 Nothing -> return ()
             (V.KChar 'c', [V.MCtrl]) -> do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
@@ -271,7 +271,7 @@ handleEvent ev =
                         else taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just $ length modifiedTaskList - 1) (s ^. taskList)
                 Nothing -> return ()
             (V.KIns, []) -> do
-              focus .= BF.focusSetCurrent TaskInsert (s ^. focus)
+              focus .= BF.focusSetCurrent (TaskEdit Insert) (s ^. focus)
             _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
         Just Commands ->
           focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
@@ -321,7 +321,7 @@ tickTimer s
 drawUI :: AppState -> [Widget Name]
 drawUI s =
   case BF.focusGetCurrent (s ^. focus) of
-    fcs | fcs `elem` [Just TaskInsert, Just TaskEdit] -> [B.border (C.hCenter $ hBox [drawTimers s <=> drawTaskList s] <=> drawTaskEditor s) <=> drawCommands fcs]
+    fcs@(Just (TaskEdit _)) -> [B.border (C.hCenter $ hBox [drawTimers s <=> drawTaskList s] <=> drawTaskEditor s) <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList s <=> drawCommandsTip]
 
@@ -376,8 +376,8 @@ drawCommandsScreen =
 drawCommands :: Maybe Name -> Widget Name
 drawCommands currentFocus = do
   case currentFocus of
-    Just TaskInsert -> strWrap "ESC: Cancel task creation  Ins: Create task  "
-    Just TaskEdit -> strWrap "ESC: Cancel task edition  Ins: Save task  "
+    Just (TaskEdit Insert) -> strWrap "ESC: Cancel task creation  Ins: Create task  "
+    Just (TaskEdit Edit) -> strWrap "ESC: Cancel task edition  Ins: Save task  "
     _ -> emptyWidget
 
 drawTaskEditor :: AppState -> Widget Name
@@ -385,10 +385,10 @@ drawTaskEditor s =
   padTop (Pad 1) $
     C.hCenter $
       B.borderWithLabel (str "Task") $
-        renderEditor drawTaskInsertorContent (BF.focusGetCurrent (s ^. focus) == Just TaskInsert) (s ^. taskEditor)
+        renderEditor drawTaskEditorContent (BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Insert) || BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Edit)) (s ^. taskEditor)
 
-drawTaskInsertorContent :: [Txt.Text] -> Widget Name
-drawTaskInsertorContent t = txt (Txt.unlines t)
+drawTaskEditorContent :: [Txt.Text] -> Widget Name
+drawTaskEditorContent t = txt (Txt.unlines t)
 
 drawTaskList :: AppState -> Widget Name
 drawTaskList s =

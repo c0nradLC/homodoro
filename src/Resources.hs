@@ -3,6 +3,7 @@
 module Resources
   ( Name (..),
     Timer (..),
+    TaskAction (..),
     AppState (..),
     Tick (..),
     timerRunning,
@@ -32,9 +33,13 @@ data Timer
   | LongBreak
   deriving (Show, Eq, Ord)
 
+data TaskAction
+  = Edit
+  | Insert
+  deriving (Show, Eq, Ord)
+
 data Name
-  = TaskInsert
-  | TaskEdit
+  = TaskEdit TaskAction
   | TaskList Timer
   | Commands
   deriving (Show, Eq, Ord)

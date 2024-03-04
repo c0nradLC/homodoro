@@ -6,6 +6,7 @@ module Resources
     AppState (..),
     Tick (..),
     timerRunning,
+    pomodoroCycleCounter,
     pomodoroTimer,
     shortBreakTimer,
     longBreakTimer,
@@ -42,6 +43,7 @@ data Tick = Tick
 
 data AppState = AppState
   { _timerRunning :: Bool,
+    _pomodoroCycleCounter :: Int,
     _pomodoroTimer :: Int,
     _shortBreakTimer :: Int,
     _longBreakTimer :: Int,

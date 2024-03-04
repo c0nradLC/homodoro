@@ -30,11 +30,13 @@ dependencies:
   - directory
   - filepath
   - vector
-  - ALUT
   - file-embed
   - bytestring
   - temporary
   - aeson
+  - sdl2
+  - sdl2-mixer
+  - data-default-class
 
 ghc-options:
 - -Wall

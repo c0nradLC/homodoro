@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Notify
@@ -8,27 +9,14 @@ where
 
 import Brick (EventM)
 import Control.Monad (when)
-import Data.ByteString (ByteString, hPut)
+import qualified Data.ByteString as SB (ByteString, hPut)
+import Data.Default.Class
 import Data.FileEmbed (embedFileRelative)
 import Data.Text (pack)
 import qualified GI.Notify as GI
 import Resources (AppState, Name)
-import Sound.ALUT
-  ( Buffer,
-    GeneratableObjectName (genObjectName),
-    HasGetter (get),
-    HasSetter (($=)),
-    SoundDataSource (File),
-    SourceState (Playing),
-    buffer,
-    createBuffer,
-    play,
-    rewind,
-    runALUT,
-    sleep,
-    sourceState,
-    withProgNameAndArgs,
-  )
+import qualified SDL
+import qualified SDL.Mixer as Mix
 import System.IO (hClose)
 import System.IO.Temp (withSystemTempFile)
 
@@ -39,28 +27,32 @@ alertRoundEnded msg = do
     notification <- GI.notificationNew (pack "homodoro") (Just $ pack msg) Nothing
     GI.notificationShow notification
 
+audioFile :: SB.ByteString
+audioFile = $(embedFileRelative "resources/ringtone.mp3")
+
 playAlertSound :: IO ()
 playAlertSound = do
-  withProgNameAndArgs runALUT $ \_ _ -> do
-    buf <- getBuffer
-    source <- genObjectName
-    buffer source $= Just buf
-    play [source]
+  SDL.initialize [SDL.InitAudio]
+  Mix.initialize [Mix.InitMP3]
 
-    let waitWhilePlaying = do
-          sleep 0.1
-          state <- get (sourceState source)
-          if state == Playing
-            then waitWhilePlaying
-            else rewind [source]
-    waitWhilePlaying
-
-getBuffer :: IO Buffer
-getBuffer = do
   withSystemTempFile "tempRingtone" $ \tempPath tempHandle -> do
-    hPut tempHandle audioFile
+    SB.hPut tempHandle audioFile
+    let audioFileTest = tempPath
     hClose tempHandle
-    createBuffer (File tempPath)
 
-audioFile :: ByteString
-audioFile = $(embedFileRelative "resources/ringtone.wav")
+    Mix.openAudio def 256
+    sound <- Mix.load audioFileTest
+    Mix.play sound
+    whileTrueM $ Mix.playing Mix.AllChannels
+
+    Mix.free sound
+
+  Mix.closeAudio
+
+  Mix.quit
+  SDL.quit
+
+whileTrueM :: Monad m => m Bool -> m ()
+whileTrueM cond = do
+  loop <- cond
+  when loop $ whileTrueM cond

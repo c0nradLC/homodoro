@@ -10,7 +10,6 @@ import Brick
     Widget,
     customMain,
     emptyWidget,
-    hBox,
     halt,
     padLeft,
     padLeftRight,
@@ -321,7 +320,7 @@ tickTimer s
 drawUI :: AppState -> [Widget Name]
 drawUI s =
   case BF.focusGetCurrent (s ^. focus) of
-    fcs@(Just (TaskEdit _)) -> [B.border (C.hCenter $ hBox [drawTimers s <=> drawTaskList s] <=> drawTaskEditor s) <=> drawCommands fcs]
+    fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList s <=> drawTaskEditor s <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList s <=> drawCommandsTip]
 
@@ -341,7 +340,9 @@ drawTimers s =
       LongBreak -> (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> withAttr selectedTimerAttr (label "Long break")) <=>)
         $ drawTimer (s ^. longBreakTimer) <=>
         drawCyclesCounter s
-    _ -> emptyWidget
+    _ -> (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>)
+        $ drawTimer (s ^. pomodoroTimer) <=>
+        drawCyclesCounter s
 
 drawTimer :: Int -> Widget Name
 drawTimer timerDuration =

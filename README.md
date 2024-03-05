@@ -74,6 +74,7 @@ This list is not ordered by importance or preference.
 - [ ] Add sort options to the task list
 - [ ] GH Actions in the repo
 - [ ] A config file to store set timer values
+- [ ] Make focus go to the previous timer when leaving a task edit/insert
 
 ## Misc
 Written in Haskell using the [brick](https://github.com/jtdaugherty/brick) library. This was heavily inspired by the other brick programs featured in it's repo's [Featured Projects](https://github.com/jtdaugherty/brick#Featured-Projects).

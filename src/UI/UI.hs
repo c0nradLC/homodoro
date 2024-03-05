@@ -40,7 +40,7 @@ import Brick.Widgets.Edit
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Lens ((+=), (.=), (^.), uses)
+import Control.Lens (uses, (+=), (.=), (^.))
 import Control.Monad.State
   ( MonadIO (liftIO),
     MonadState (get),
@@ -57,18 +57,20 @@ import qualified Notify as NT
 import Resources
   ( AppState (..),
     Name (..),
+    TaskAction (Edit, Insert),
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
     focus,
     longBreakInitialTimer,
     longBreakTimer,
+    pomodoroCycleCounter,
     pomodoroInitialTimer,
     pomodoroTimer,
     shortBreakInitialTimer,
     shortBreakTimer,
     taskEditor,
     taskList,
-    timerRunning, pomodoroCycleCounter, TaskAction (Insert, Edit),
+    timerRunning,
   )
 import Task.File (TaskListOperation (..))
 import qualified Task.File as TKF
@@ -287,10 +289,10 @@ finishShortBreakRound :: AppState -> EventM Name AppState ()
 finishShortBreakRound s = do
   pomodoroCycleCounter .= (s ^. pomodoroCycleCounter) + 1
   updatedCycleCounter <- uses pomodoroCycleCounter id
-  if updatedCycleCounter == 4 then do
-    focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
-  else
-    focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
+  if updatedCycleCounter == 4
+    then do
+      focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
+    else focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
 
 tickTimer :: AppState -> EventM Name AppState ()
 tickTimer s
@@ -331,27 +333,32 @@ drawTimers :: AppState -> Widget Name
 drawTimers s =
   case BF.focusGetCurrent (s ^. focus) of
     Just (TaskList timer) -> case timer of
-      Pomodoro -> (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>)
-        $ drawTimer (s ^. pomodoroTimer) <=>
-        drawCyclesCounter s
-      ShortBreak -> (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (withAttr selectedTimerAttr $ label "Short break") <+> label "Long break") <=>) 
-        $ drawTimer (s ^. shortBreakTimer) <=>
-        drawCyclesCounter s
-      LongBreak -> (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> withAttr selectedTimerAttr (label "Long break")) <=>)
-        $ drawTimer (s ^. longBreakTimer) <=>
-        drawCyclesCounter s
-    _ -> (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>)
-        $ drawTimer (s ^. pomodoroTimer) <=>
-        drawCyclesCounter s
+      Pomodoro ->
+        (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
+          drawTimer (s ^. pomodoroTimer)
+            <=> drawCyclesCounter s
+      ShortBreak ->
+        (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (withAttr selectedTimerAttr $ label "Short break") <+> label "Long break") <=>) $
+          drawTimer (s ^. shortBreakTimer)
+            <=> drawCyclesCounter s
+      LongBreak ->
+        (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> withAttr selectedTimerAttr (label "Long break")) <=>) $
+          drawTimer (s ^. longBreakTimer)
+            <=> drawCyclesCounter s
+    _ ->
+      (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
+        drawTimer (s ^. pomodoroTimer)
+          <=> drawCyclesCounter s
 
 drawTimer :: Int -> Widget Name
 drawTimer timerDuration =
   C.hCenter $
-  padTopBottom 2 $
-    withAttr timerAttr $
-        padTopBottom 1 $ padLeftRight 1 $
-      str $
-        formatTimer timerDuration
+    padTopBottom 2 $
+      withAttr timerAttr $
+        padTopBottom 1 $
+          padLeftRight 1 $
+            str $
+              formatTimer timerDuration
 
 drawCyclesCounter :: AppState -> Widget Name
 drawCyclesCounter s = C.hCenter (label (formatCycleCounter (s ^. pomodoroCycleCounter)))

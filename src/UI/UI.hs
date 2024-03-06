@@ -72,7 +72,6 @@ import Resources
     taskList,
     timerRunning,
   )
-import Task.File (TaskListOperation (..))
 import qualified Task.File as TKF
 import qualified Task.Task as TK
 import Text.Printf (printf)
@@ -152,7 +151,7 @@ handleEvent ev =
                 then do
                   let task = TK.mkTask insertedContent $ Just False
                   taskList .= BL.listInsert (length $ s ^. taskList) task (s ^. taskList)
-                  _ <- liftIO $ TKF.writeTasks TKF.updateTaskList (AppendTask task)
+                  _ <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.AppendTask task)
                   taskEditor .= editor (TaskEdit Insert) (Just 5) ""
                   focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
                 else do
@@ -171,7 +170,7 @@ handleEvent ev =
                   let editedContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
                   taskAlreadyExists <- liftIO $ TKF.taskExists editedContent
                   when (not taskAlreadyExists && not (Txt.null editedContent)) $ do
-                    modifiedTaskList <- liftIO $ TKF.writeTasks TKF.updateTaskList (EditTask selectedTask editedContent)
+                    modifiedTaskList <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.EditTask selectedTask editedContent)
                     taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                     taskEditor .= editor (TaskEdit Edit) (Just 5) ""
                     focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
@@ -256,14 +255,14 @@ handleEvent ev =
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
                 Just (_, selectedTask) -> do
-                  modifiedTaskList <- liftIO $ TKF.writeTasks TKF.updateTaskList (ChangeTaskCompletion selectedTask)
+                  modifiedTaskList <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.ChangeTaskCompletion selectedTask)
                   taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                 Nothing -> return ()
             (V.KDel, []) -> do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
                 Just (selectedIndex, selectedTask) -> do
-                  modifiedTaskList <- liftIO $ TKF.writeTasks TKF.updateTaskList (DeleteTask selectedTask)
+                  modifiedTaskList <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.DeleteTask selectedTask)
                   if selectedIndex - 1 == length modifiedTaskList
                     then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
                     else

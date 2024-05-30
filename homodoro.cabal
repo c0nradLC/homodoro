@@ -1,0 +1,112 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           homodoro
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/simple#readme>
+homepage:       https://github.com/c0nradLC/homodoro#readme
+bug-reports:    https://github.com/c0nradLC/homodoro/issues
+author:         Leonardo Palhano Conrado
+maintainer:     l.conrado10@gmail.com
+copyright:      2024 Leonardo Conrado
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/c0nradLC/homodoro
+
+library
+  exposed-modules:
+      Notify
+      Resources
+      Task.File
+      Task.Task
+      UI.Attributes
+      UI.UI
+  other-modules:
+      Paths_homodoro
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      aeson <3
+    , base >=4.7 && <5
+    , brick <3
+    , bytestring <1
+    , data-default-class <1
+    , directory <2
+    , file-embed <0.1
+    , filepath <2
+    , gi-notify <=0.7.27
+    , lens <6
+    , mtl <3
+    , sdl2 <3
+    , sdl2-mixer <2
+    , temporary <2
+    , text <3
+    , vector <1
+    , vty <6.0
+  default-language: Haskell2010
+
+executable homodoro
+  main-is: Main.hs
+  other-modules:
+      Paths_homodoro
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson <3
+    , base >=4.7 && <5
+    , brick <3
+    , bytestring <1
+    , data-default-class <1
+    , directory <2
+    , file-embed <0.1
+    , filepath <2
+    , gi-notify <=0.7.27
+    , lens <6
+    , mtl <3
+    , sdl2 <3
+    , sdl2-mixer <2
+    , temporary <2
+    , text <3
+    , vector <1
+    , vty <6.0
+  default-language: Haskell2010
+
+test-suite homodoro-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_homodoro
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson <3
+    , base >=4.7 && <5
+    , brick <3
+    , bytestring <1
+    , data-default-class <1
+    , directory <2
+    , file-embed <0.1
+    , filepath <2
+    , gi-notify <=0.7.27
+    , lens <6
+    , mtl <3
+    , sdl2 <3
+    , sdl2-mixer <2
+    , temporary <2
+    , text <3
+    , vector <1
+    , vty <6.0
+  default-language: Haskell2010

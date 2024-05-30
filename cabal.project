@@ -1,0 +1,7 @@
+packages: *.cabal
+
+-- Fix "ERROR: couldn't find API description for GLib.time_t"
+source-repository-package
+  type: git
+  location: https://github.com/sheaf/haskell-gi
+  tag: ec11dd69ab6a3a9f7f7e967f5f7ffa7d9206cd2a

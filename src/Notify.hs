@@ -11,7 +11,7 @@ import Brick (EventM)
 import Control.Monad (when)
 import qualified Data.ByteString as SB (ByteString, hPut)
 import Data.Default.Class
-import Data.FileEmbed (embedFileRelative)
+import Data.FileEmbed (embedFile)
 import Data.Text (pack)
 import qualified GI.Notify as GI
 import Resources (AppState, Name)
@@ -28,7 +28,7 @@ alertRoundEnded msg = do
     GI.notificationShow notification
 
 audioFile :: SB.ByteString
-audioFile = $(embedFileRelative "resources/ringtone.mp3")
+audioFile = $(embedFile "resources/ringtone.mp3")
 
 playAlertSound :: IO ()
 playAlertSound = do

@@ -10,7 +10,6 @@ let
   };
 
   pkgs = import src { };
-
 in
 {
   homodoro = pkgs.haskellPackages.callPackage ./homodoro.nix { };

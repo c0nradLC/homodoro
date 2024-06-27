@@ -1,4 +1,4 @@
-{ mkDerivation, aeson, base, brick, bytestring, data-default-class, haskell-language-server, ghcid, cabal-install, ghc
+{ mkDerivation, aeson, base, brick, bytestring, data-default-class, haskell-language-server
 , directory, file-embed, filepath, gi-notify, lens, lib, mtl, sdl2, sdl2-mixer, temporary, text, vector, vty
 }:
 mkDerivation {
@@ -12,7 +12,7 @@ mkDerivation {
     filepath gi-notify lens mtl sdl2 sdl2-mixer temporary text vector
     vty
   ];
-  executableSystemDepends = [haskell-language-server ghcid cabal-install ghc];
+  executableSystemDepends = [haskell-language-server];
   executableHaskellDepends = [
     aeson base brick bytestring data-default-class directory file-embed
     filepath gi-notify lens mtl sdl2 sdl2-mixer temporary text vector

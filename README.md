@@ -67,14 +67,14 @@ When a timer reaches zero an alarm sound should ring and a notification popup sh
 ## Todo
 This list is not ordered by importance or preference.
 
-- [ ] Add Nix support
-- [ ] Import/Export tasks to other formats (Markdown being the first and only that comes to mind)
-- [ ] A settings screen/dialog to allow selection of where the tasks file will be stored, which sound file to use for the alarm and other configurations
+- [x] Add Nix support
+- [ ] Improve Nix integration
+- [ ] Import/Export tasks to/from other formats (Markdown being the first that comes to mind)
+- [ ] A settings screen/dialog to give more flexibility to the user
 - [ ] Allow to set a priority for each task
-- [ ] Add sort options to the task list
+- [ ] Allow to sort/move tasks in the list
 - [ ] GH Actions in the repo
-- [ ] A config file to store set timer values
-- [ ] Make focus go to the previous timer when leaving a task edit/insert
+- [ ] Persist set timer values
 
 ## Misc
 Written in Haskell using the [brick](https://github.com/jtdaugherty/brick) library. This was heavily inspired by the other brick programs featured in it's repo's [Featured Projects](https://github.com/jtdaugherty/brick#Featured-Projects).

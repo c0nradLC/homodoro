@@ -2,30 +2,36 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Notify
-  ( alertRoundEnded,
+  ( 
     playAlertSound,
+    alertRoundEnded
   )
 where
 
-import Brick (EventM)
 import Control.Monad (when)
 import qualified Data.ByteString as SB (ByteString, hPut)
 import Data.Default.Class
 import Data.FileEmbed (embedFile)
-import Data.Text (pack)
-import qualified GI.Notify as GI
-import Resources (AppState, Name)
 import qualified SDL
 import qualified SDL.Mixer as Mix
 import System.IO (hClose)
 import System.IO.Temp (withSystemTempFile)
+import Brick (EventM)
+import Resources (Name, AppState)
+import qualified Libnotify.C.Notify as LN
+import Control.Monad.Cont (MonadIO(liftIO))
+import qualified Libnotify.C.NotifyNotification as LN
+import Libnotify.C.NotifyNotification (notify_notification_show, notify_notification_set_timeout, Timeout(..))
 
 alertRoundEnded :: String -> EventM Name AppState ()
-alertRoundEnded msg = do
-  notificationServerInitiated <- GI.init $ Just $ pack "homodoro"
-  when notificationServerInitiated $ do
-    notification <- GI.notificationNew (pack "homodoro") (Just $ pack msg) Nothing
-    GI.notificationShow notification
+alertRoundEnded msg = liftIO $ do
+  _ <- LN.notify_init "homodoro"
+  notifyInitted <- LN.notify_is_initted
+  when notifyInitted $ do
+      notification <- LN.notify_notification_new "homodoro" msg ""
+      notify_notification_set_timeout notification (Custom 5000)
+      _ <- notify_notification_show notification
+      return ()
 
 audioFile :: SB.ByteString
 audioFile = $(embedFile "resources/ringtone.mp3")

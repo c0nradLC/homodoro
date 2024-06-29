@@ -69,12 +69,12 @@ This list is not ordered by importance or preference.
 
 - [x] Add Nix support
 - [ ] Improve Nix integration
-- [ ] Import/Export tasks to/from other formats (Markdown being the first that comes to mind)
-- [ ] A settings screen/dialog to give more flexibility to the user
+- [ ] Persist set timer values
 - [ ] Allow to set a priority for each task
 - [ ] Allow to sort/move tasks in the list
+- [ ] Implement task archiving
 - [ ] GH Actions in the repo
-- [ ] Persist set timer values
+- [ ] Import/Export tasks to/from other formats
 
 ## Misc
 Written in Haskell using the [brick](https://github.com/jtdaugherty/brick) library. This was heavily inspired by the other brick programs featured in it's repo's [Featured Projects](https://github.com/jtdaugherty/brick#Featured-Projects).

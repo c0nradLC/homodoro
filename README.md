@@ -27,7 +27,7 @@ Currently only Linux is supported.
 
 You can download the binary through the [Releases](https://github.com/c0nradLC/homodoro/releases). You can run it directly where it was downloaded or put it in a directory present in your `PATH`.
 
-You can also build and install from source, you just need to clone this repo and build/install with [Stack](https://docs.haskellstack.org/en/stable/).
+You can also build homodoro with `nix-build` or `cabal build` or run a development shell with `nix-shell`.
 
 ## Usage
 Just run `homodoro` and you should see the timers and the task list.
@@ -60,9 +60,7 @@ When a timer reaches zero an alarm sound should ring and a notification popup sh
   
 > The popup is shown using the [libnotify](https://hackage.haskell.org/package/libnotify) library
   
-> Initially the alarm sound was played using OpenAL and ALUT (OpenAl Utility Toolkit) through the [haskell-openal/alut](https://github.com/haskell-openal/ALUT) package but I had some problems trying to compile the project in Windows so I switched it to [SDL2](https://hackage.haskell.org/package/sdl2) and [SDL2-mixer](https://hackage.haskell.org/package/sdl2-mixer) to see if it helped.
-
->  I'm still having issues compiling it on Windows despite having found some possible [solutions](https://github.com/haskell-game/sdl2/issues/277#issuecomment-1339145721) to it. If you'd like to have this also running on Windows feel free to try and make it work and share the steps if possible. I might come back to this from time to time to try and make it work, but I'm not commited to it.
+> The alarm sound is played using [SDL2](https://hackage.haskell.org/package/sdl2) and [SDL2-mixer](https://hackage.haskell.org/package/sdl2-mixer)
 
 ## Todo
 This list is not ordered by importance or preference.

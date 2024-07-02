@@ -79,14 +79,16 @@ import UI.Attributes (
     attributes,
     selectedTaskAttr,
     selectedTimerAttr,
+    taskCompletedLabelAttr,
+    taskPendingLabelAttr,
     timerAttr,
  )
+import qualified Config as CFG (createConfigFileIfNotExists) 
 
 uiMain :: IO ()
 uiMain = do
     eventChan <- newBChan 10
-    tasksFilePath <- TKF.getTasksFilePath
-    TKF.createTasksFileIfNotExists tasksFilePath
+    CFG.createConfigFileIfNotExists
     _ <- forkIO $ forever $ do
         writeBChan eventChan Tick
         threadDelay 1000000
@@ -419,7 +421,15 @@ taskListItem task =
             B.border $
                 padLeft (Pad 1) $
                     txtWrap (task ^. TK.taskContent)
-                        <=> if task ^. TK.taskCompleted then padTop (Pad 1) $ txtWrap "☒" else padTop (Pad 1) $ txtWrap "☐"
+                        <=> if task ^. TK.taskCompleted
+                            then
+                                withAttr taskCompletedLabelAttr $
+                                    padTop (Pad 1) $
+                                        txt "Completed"
+                            else
+                                withAttr taskPendingLabelAttr $
+                                    padTop (Pad 1) $
+                                        txt "Pending"
         ]
 
 formatTimer :: Int -> String

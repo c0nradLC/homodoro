@@ -4,6 +4,8 @@ module UI.Attributes (
     taskEditorAttr,
     selectedTaskAttr,
     selectedTimerAttr,
+    taskCompletedLabelAttr,
+    taskPendingLabelAttr,
 )
 where
 
@@ -18,6 +20,8 @@ attributes =
         , (taskEditorAttr, V.black `on` V.white)
         , (selectedTaskAttr, V.black `on` V.white)
         , (selectedTimerAttr, V.black `on` V.white)
+        , (taskCompletedLabelAttr, V.blue `on` V.white)
+        , (taskPendingLabelAttr, V.red `on` V.white)
         ]
 
 timerAttr :: AttrName
@@ -31,3 +35,9 @@ selectedTaskAttr = attrName "selectedTaskAttr"
 
 selectedTimerAttr :: AttrName
 selectedTimerAttr = attrName "selectedTimerAttr"
+
+taskCompletedLabelAttr :: AttrName
+taskCompletedLabelAttr = attrName "taskCompletedLabelAttr"
+
+taskPendingLabelAttr :: AttrName
+taskPendingLabelAttr = attrName "taskPendingLabelAttr"

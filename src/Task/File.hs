@@ -2,7 +2,6 @@
 
 module Task.File (
     createTasksFileIfNotExists,
-    getTasksFilePath,
     taskExists,
     getTasks,
     writeTasks,
@@ -17,22 +16,19 @@ import qualified Data.Text as T
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import qualified Task.Task as TK (Task (..), TaskListOperation, TaskListUpdate, taskContent)
+import qualified Config as CFG
 
-createTasksFileIfNotExists :: FilePath -> IO ()
-createTasksFileIfNotExists filePath = do
+createTasksFileIfNotExists :: IO ()
+createTasksFileIfNotExists = do
+    filePath <- CFG.getTasksFilePath
     D.createDirectoryIfMissing True (FP.takeDirectory filePath)
     fileExists <- D.doesFileExist filePath
     unless fileExists $ do BSL.writeFile filePath ""
 
-getTasksFilePath :: IO FilePath
-getTasksFilePath = do
-    homePath <- D.getXdgDirectory D.XdgData ""
-    pure $ homePath FP.</> "homodoro/tasks"
-
 writeTasks :: TK.TaskListUpdate -> TK.TaskListOperation -> IO [TK.Task]
 writeTasks function task = do
     tasks <- getTasks
-    tasksFilePath <- getTasksFilePath
+    tasksFilePath <- CFG.getTasksFilePath
     case tasks of
         Just fTasks -> do
             let modifiedTaskList = function task fTasks
@@ -51,9 +47,9 @@ taskExists content = do
 
 getTasks :: IO (Maybe [TK.Task])
 getTasks = do
-    tasksFilePath <- getTasksFilePath
+    tasksFilePath <- CFG.getTasksFilePath
     tasksFromFile <- BSL.readFile tasksFilePath
     case decode tasksFromFile of
-        Just text -> do
-            return text
+        Just task -> do
+            return task
         Nothing -> return (Just [])

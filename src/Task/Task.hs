@@ -21,7 +21,6 @@ data Task = Task
     { _taskContent :: T.Text
     , _taskCompleted :: Bool
     }
-
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
@@ -43,7 +42,7 @@ mkTask txt mb
     | Just b <- mb = Task{_taskContent = txt, _taskCompleted = b}
     | Nothing <- mb = Task{_taskContent = txt, _taskCompleted = False}
 
-updateTaskList :: TaskListOperation -> [Task] -> [Task]
+updateTaskList :: TaskListUpdate
 updateTaskList (AppendTask task) = (task :)
 updateTaskList (DeleteTask task) = filter (/= task)
 updateTaskList (ChangeTaskCompletion targetTask) = over (traversed . filtered (== targetTask)) (taskCompleted %~ not)

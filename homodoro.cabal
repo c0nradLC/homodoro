@@ -28,6 +28,7 @@ executable homodoro
       UI.Attributes
       Notify
       Resources
+      Config
   hs-source-dirs:
       app
      ,src 

@@ -1,1 +1,1 @@
-(import ./release.nix).homodoro.env
+(import ./default.nix).homodoro.env

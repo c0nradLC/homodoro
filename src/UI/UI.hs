@@ -12,9 +12,7 @@ import Brick (
     emptyWidget,
     halt,
     padLeft,
-    padLeftRight,
     padTop,
-    padTopBottom,
     showFirstCursor,
     str,
     strWrap,
@@ -23,7 +21,6 @@ import Brick (
     vBox,
     withAttr,
     withBorderStyle,
-    (<+>),
     (<=>),
  )
 import Brick.BChan (newBChan, writeBChan)
@@ -62,7 +59,6 @@ import Resources (
     focus,
     longBreakInitialTimer,
     longBreakTimer,
-    pomodoroCycleCounter,
     pomodoroInitialTimer,
     pomodoroTimer,
     shortBreakInitialTimer,
@@ -71,21 +67,19 @@ import Resources (
     taskList,
     timerRunning, Task, TaskListOperation (..),
  )
-import Text.Printf (printf)
 import UI.Attributes (
     attributes,
     selectedTaskAttr,
-    selectedTimerAttr,
     taskCompletedLabelAttr,
     taskPendingLabelAttr,
-    timerAttr,
  )
-import qualified Config as CFG (createConfigFileIfNotExists) 
+import qualified Config as CFG (createConfigFileIfNotExists, updateConfig, writeConfig) 
 import UI.Config (drawConfig)
 import Timer (tickTimer)
-import Config (getInitialTimer)
+import Config (getInitialTimer, getConfig)
 import qualified Resources as R
 import Task (getTasks, writeTasks, updateTaskList, mkTask, taskExists)
+import UI.Timer (drawTimers)
 
 uiMain :: IO ()
 uiMain = do
@@ -206,47 +200,82 @@ handleEvent ev =
                         (V.KChar 'i', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
-                                    pomodoroInitialTimer += 60
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 60)) config
                                     pomodoroTimer += 60
                                 TaskList ShortBreak -> do
-                                    shortBreakInitialTimer += 60
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 60)) config
                                     shortBreakTimer += 60
                                 TaskList LongBreak -> do
-                                    longBreakInitialTimer += 60
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (config ^. longBreakInitialTimer + 60)) config
                                     longBreakTimer += 60
                         (V.KChar 'd', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
-                                    
-                                    pomodoroInitialTimer .= max ((s ^. pomodoroInitialTimer) - 60) 1
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (max ((config ^. pomodoroInitialTimer) - 60) 1)) config
                                     pomodoroTimer .= max ((s ^. pomodoroTimer) - 60) 1
                                 TaskList ShortBreak -> do
-                                    shortBreakInitialTimer .= max ((s ^. shortBreakInitialTimer) - 60) 1
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (max ((config ^. shortBreakInitialTimer) - 60) 1)) config
                                     shortBreakTimer .= max ((s ^. shortBreakTimer) - 60) 1
                                 TaskList LongBreak -> do
-                                    longBreakInitialTimer .= max ((s ^. longBreakInitialTimer) - 60) 1
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (max ((config ^. longBreakInitialTimer) - 60) 1)) config
                                     longBreakTimer .= max ((s ^. longBreakTimer) - 60) 1
                         (V.KChar 'I', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
-                                    pomodoroInitialTimer += 10
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 10)) config
                                     pomodoroTimer += 10
                                 TaskList ShortBreak -> do
-                                    shortBreakInitialTimer += 10
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 10)) config
                                     shortBreakTimer += 10
                                 TaskList LongBreak -> do
-                                    longBreakInitialTimer += 10
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (config ^. longBreakInitialTimer + 10)) config
                                     longBreakTimer += 10
                         (V.KChar 'D', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
-                                    pomodoroInitialTimer .= max ((s ^. pomodoroInitialTimer) - 10) 1
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (max ((config ^. pomodoroInitialTimer) - 10) 1)) config
                                     pomodoroTimer .= max ((s ^. pomodoroTimer) - 10) 1
                                 TaskList ShortBreak -> do
-                                    shortBreakInitialTimer .= max ((s ^. shortBreakInitialTimer) - 10) 1
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (max ((config ^. shortBreakInitialTimer) - 10) 1)) config
                                     shortBreakTimer .= max ((s ^. shortBreakTimer) - 10) 1
                                 TaskList LongBreak -> do
-                                    longBreakInitialTimer .= max ((s ^. longBreakInitialTimer) - 10) 1
+                                    _ <- liftIO $ forkIO $ do
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (max ((config ^. longBreakInitialTimer) - 10) 1)) config
                                     longBreakTimer .= max ((s ^. longBreakTimer) - 10) 1
                         (V.KBackTab, []) -> do
                             timerRunning .= False
@@ -298,43 +327,6 @@ drawUI s =
         Just Commands -> [B.border $ C.center drawCommandsScreen]
         Just Config -> [drawConfig]
         _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList s <=> drawCommandsTip]
-
-label :: String -> Widget Name
-label s = B.border $ padLeftRight 1 $ str s
-
-drawTimers :: AppState -> Widget Name
-drawTimers s =
-    case BF.focusGetCurrent (s ^. focus) of
-        Just (TaskList timer) -> case timer of
-            Pomodoro ->
-                (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
-                    drawTimer (s ^. pomodoroTimer)
-                        <=> drawCyclesCounter s
-            ShortBreak ->
-                (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (withAttr selectedTimerAttr $ label "Short break") <+> label "Long break") <=>) $
-                    drawTimer (s ^. shortBreakTimer)
-                        <=> drawCyclesCounter s
-            LongBreak ->
-                (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> withAttr selectedTimerAttr (label "Long break")) <=>) $
-                    drawTimer (s ^. longBreakTimer)
-                        <=> drawCyclesCounter s
-        _ ->
-            (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
-                drawTimer (s ^. pomodoroTimer)
-                    <=> drawCyclesCounter s
-
-drawTimer :: Int -> Widget Name
-drawTimer timerDuration =
-    C.hCenter $
-        padTopBottom 2 $
-            withAttr timerAttr $
-                padTopBottom 1 $
-                    padLeftRight 1 $
-                        str $
-                            formatTimer timerDuration
-
-drawCyclesCounter :: AppState -> Widget Name
-drawCyclesCounter s = C.hCenter (label (formatCycleCounter (s ^. pomodoroCycleCounter)))
 
 drawCommandsTip :: Widget Name
 drawCommandsTip = C.hCenter $ str "press c to see the commands"
@@ -403,13 +395,3 @@ taskListItem task =
                                     padTop (Pad 1) $
                                         txt "Pending"
         ]
-
-formatTimer :: Int -> String
-formatTimer timer =
-    let minutes = timer `div` 60
-        seconds = timer `mod` 60
-     in printf "%02d:%02d" minutes seconds
-
-formatCycleCounter :: Int -> String
-formatCycleCounter =
-    printf "Pomodoro cycles: %01d"

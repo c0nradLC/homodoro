@@ -3,7 +3,10 @@
 module Config (
     createConfigFileIfNotExists,
     getTasksFilePath,
-    getInitialTimer
+    getInitialTimer,
+    updateConfig,
+    writeConfig,
+    getConfig
 )
 where
 
@@ -15,7 +18,6 @@ import qualified Resources as R
 import Control.Monad (unless)
 import Control.Lens.Getter ((^.))
 import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigFileUpdate, activeTasksFilePath, pomodoroInitialTimer, shortBreakInitialTimer, longBreakInitialTimer)
-import Control.Monad.Cont (MonadIO(liftIO))
 
 defaultConfig :: IO ConfigFile
 defaultConfig = do

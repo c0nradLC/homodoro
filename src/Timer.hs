@@ -3,7 +3,7 @@ module Timer
  tickTimer
 )
 where
-import Resources (AppState, Name (TaskList), Timer (Pomodoro, ShortBreak, LongBreak), timerRunning, focus, pomodoroTimer, pomodoroInitialTimer, shortBreakTimer, shortBreakInitialTimer, longBreakTimer, longBreakInitialTimer, pomodoroCycleCounter)
+import Resources (AppState, Name (..), Timer (..), timerRunning, focus, pomodoroTimer, shortBreakTimer, longBreakTimer, pomodoroCycleCounter)
 import Brick (EventM)
 import qualified Brick.Focus as BF
 import Control.Lens ((^.), (.=), uses)
@@ -11,6 +11,7 @@ import Control.Monad (when)
 import qualified Notify as NT
 import Control.Concurrent (forkIO)
 import Control.Monad.Cont (MonadIO(liftIO))
+import qualified Config as CFG
 
 stopTimerAndAlert :: String -> EventM Name AppState ()
 stopTimerAndAlert msg = do
@@ -18,36 +19,46 @@ stopTimerAndAlert msg = do
     _ <- liftIO $ forkIO NT.playAlertSound
     NT.alertRoundEnded msg
 
-finishShortBreakRound :: AppState -> EventM Name AppState ()
-finishShortBreakRound s = do
-    pomodoroCycleCounter .= (s ^. pomodoroCycleCounter) + 1
-    updatedCycleCounter <- uses pomodoroCycleCounter id
-    if updatedCycleCounter == 4
-        then do
-            focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
-        else focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
+finishRound :: AppState -> Name -> EventM Name AppState ()
+finishRound s currentFocus = do
+    case currentFocus of
+        TaskList Pomodoro -> do
+                initialTimer <- liftIO $ CFG.getInitialTimer Pomodoro
+                pomodoroTimer .= initialTimer
+                stopTimerAndAlert "Pomodoro round ended!"
+                focus .= BF.focusSetCurrent (TaskList ShortBreak) (s ^. focus)
+        TaskList ShortBreak -> do
+                initialTimer <- liftIO $ CFG.getInitialTimer ShortBreak
+                shortBreakTimer .= initialTimer
+                stopTimerAndAlert "Short break ended!"
+                pomodoroCycleCounter .= (s ^. pomodoroCycleCounter) + 1
+                updatedCycleCounter <- uses pomodoroCycleCounter id
+                if updatedCycleCounter == 4
+                    then do
+                        focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
+                    else focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
+        TaskList LongBreak -> do
+                initialTimer <- liftIO $ CFG.getInitialTimer LongBreak
+                longBreakTimer .= initialTimer
+                stopTimerAndAlert "Long break ended!"
+                focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
+                pomodoroCycleCounter .= 0
+        _ -> return ()
 
 tickTimer :: AppState -> EventM Name AppState ()
 tickTimer s
     | s ^. timerRunning = case BF.focusGetCurrent (s ^. focus) of
-        Just (TaskList Pomodoro) -> do
+        Just cfs@(TaskList Pomodoro) -> do
             pomodoroTimer .= max ((s ^. pomodoroTimer) - 1) 0
             when (s ^. pomodoroTimer == 0) $ do
-                pomodoroTimer .= s ^. pomodoroInitialTimer
-                stopTimerAndAlert "Pomodoro round ended!"
-                focus .= BF.focusSetCurrent (TaskList ShortBreak) (s ^. focus)
-        Just (TaskList ShortBreak) -> do
+                finishRound s cfs
+        Just cfs@(TaskList ShortBreak) -> do
             shortBreakTimer .= max ((s ^. shortBreakTimer) - 1) 0
             when (s ^. shortBreakTimer == 0) $ do
-                shortBreakTimer .= s ^. shortBreakInitialTimer
-                stopTimerAndAlert "Short break ended!"
-                finishShortBreakRound s
-        Just (TaskList LongBreak) -> do
+                finishRound s cfs
+        Just cfs@(TaskList LongBreak) -> do
             longBreakTimer .= max ((s ^. longBreakTimer) - 1) 0
             when (s ^. longBreakTimer == 0) $ do
-                longBreakTimer .= s ^. longBreakInitialTimer
-                stopTimerAndAlert "Long break ended!"
-                focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-                pomodoroCycleCounter .= 0
+                finishRound s cfs
         _ -> return ()
     | otherwise = return ()

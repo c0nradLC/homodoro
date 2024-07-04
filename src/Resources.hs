@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Resources (
     Name (..),
@@ -6,6 +7,12 @@ module Resources (
     TaskAction (..),
     AppState (..),
     Tick (..),
+    ConfigFile (..),
+    ConfigFileUpdate,
+    ConfigFileOperation (..),
+    Task (..),
+    TaskListUpdate,
+    TaskListOperation (..),
     timerRunning,
     pomodoroCycleCounter,
     pomodoroTimer,
@@ -17,6 +24,9 @@ module Resources (
     taskEditor,
     taskList,
     focus,
+    activeTasksFilePath,
+    taskContent,
+    taskCompleted
 )
 where
 
@@ -25,7 +35,8 @@ import Brick.Widgets.Edit (Editor)
 import qualified Brick.Widgets.List as BL
 import Control.Lens
 import qualified Data.Text as Txt
-import qualified Task.Task as TK
+import qualified Data.Text as T
+import Data.Aeson.TH (deriveJSON, defaultOptions)
 
 data Timer
     = Pomodoro
@@ -42,9 +53,49 @@ data Name
     = TaskEdit TaskAction
     | TaskList Timer
     | Commands
+    | Config
     deriving (Show, Eq, Ord)
 
 data Tick = Tick
+
+data Task = Task
+    { _taskContent :: T.Text
+    , _taskCompleted :: Bool
+    }
+deriveJSON defaultOptions ''Task
+makeLenses ''Task
+
+data TaskListOperation
+    = AppendTask Task
+    | DeleteTask Task
+    | EditTask Task T.Text
+    | ChangeTaskCompletion Task
+
+type TaskListUpdate = TaskListOperation -> [Task] -> [Task]
+
+instance Eq Task where
+    (==) :: Task -> Task -> Bool
+    (Task content1 _) == (Task content2 _) =
+        content1 == content2
+
+data ConfigFile = ConfigFile
+    { _pomodoroInitialTimer :: Int
+    , _shortBreakInitialTimer :: Int
+    , _longBreakInitialTimer :: Int
+    , _activeTasksFilePath :: FilePath
+    , _archivedTasksFilePath :: FilePath
+    , _dailyTasksMode :: Bool --This will make tasks be grouped by date, just like the archived tasks
+    }
+deriveJSON defaultOptions ''ConfigFile
+makeLenses ''ConfigFile
+
+data ConfigFileOperation
+    = ToggleDailyTasksMode
+    | UpdateInitialTimer Timer Int
+    | SetActiveTasksFilePath FilePath
+    | SetArchivedTasksFilePath FilePath
+
+type ConfigFileUpdate = ConfigFileOperation -> ConfigFile -> ConfigFile
 
 data AppState = AppState
     { _timerRunning :: Bool
@@ -52,12 +103,8 @@ data AppState = AppState
     , _pomodoroTimer :: Int
     , _shortBreakTimer :: Int
     , _longBreakTimer :: Int
-    , _pomodoroInitialTimer :: Int
-    , _shortBreakInitialTimer :: Int
-    , _longBreakInitialTimer :: Int
     , _taskEditor :: Editor Txt.Text Name
-    , _taskList :: BL.List Name TK.Task
+    , _taskList :: BL.List Name Task
     , _focus :: BF.FocusRing Name
     }
-
 makeLenses ''AppState

@@ -40,7 +40,7 @@ import Brick.Widgets.Edit (
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Lens (uses, (+=), (.=), (^.))
+import Control.Lens ((+=), (.=), (^.))
 import Control.Monad.State (
     MonadIO (liftIO),
     MonadState (get),
@@ -53,7 +53,6 @@ import qualified Data.Text as Txt
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty.Input.Events as VE
-import qualified Notify as NT
 import Resources (
     AppState (..),
     Name (..),
@@ -70,10 +69,8 @@ import Resources (
     shortBreakTimer,
     taskEditor,
     taskList,
-    timerRunning,
+    timerRunning, Task, TaskListOperation (..),
  )
-import qualified Task.File as TKF
-import qualified Task.Task as TK
 import Text.Printf (printf)
 import UI.Attributes (
     attributes,
@@ -84,6 +81,11 @@ import UI.Attributes (
     timerAttr,
  )
 import qualified Config as CFG (createConfigFileIfNotExists) 
+import UI.Config (drawConfig)
+import Timer (tickTimer)
+import Config (getInitialTimer)
+import qualified Resources as R
+import Task (getTasks, writeTasks, updateTaskList, mkTask, taskExists)
 
 uiMain :: IO ()
 uiMain = do
@@ -92,18 +94,21 @@ uiMain = do
     _ <- forkIO $ forever $ do
         writeBChan eventChan Tick
         threadDelay 1000000
-    initialState <- createAppState 1500 300 900
+    initialState <- createAppState
     let buildVty = V.mkVty V.defaultConfig
     initialVty <- buildVty
     void $ customMain initialVty buildVty (Just eventChan) app initialState
 
-createAppState :: Int -> Int -> Int -> IO AppState
-createAppState pomodoroTimerDuration shortBreakTimerDuration longBreakTimerDuration = do
-    tasks <- TKF.getTasks
-    let appState = createAppStateWithTasks pomodoroTimerDuration shortBreakTimerDuration longBreakTimerDuration tasks
+createAppState :: IO AppState
+createAppState = do
+    tasks <- getTasks
+    setPomodoroInitialTimer <- getInitialTimer R.Pomodoro
+    setShortBreakInitialTimer <- getInitialTimer R.ShortBreak
+    setLongBreakInitialTimer <- getInitialTimer R.LongBreak
+    let appState = createAppStateWithTasks setPomodoroInitialTimer setShortBreakInitialTimer setLongBreakInitialTimer tasks
     return appState
 
-createAppStateWithTasks :: Int -> Int -> Int -> Maybe [TK.Task] -> AppState
+createAppStateWithTasks :: Int -> Int -> Int -> Maybe [Task] -> AppState
 createAppStateWithTasks
     pomodoroTimerDuration
     shortBreakTimerDuration
@@ -114,14 +119,11 @@ createAppStateWithTasks
          in AppState
                 { _timerRunning = False
                 , _pomodoroCycleCounter = 0
-                , _pomodoroInitialTimer = pomodoroTimerDuration
                 , _pomodoroTimer = pomodoroTimerDuration
-                , _shortBreakInitialTimer = shortBreakTimerDuration
                 , _shortBreakTimer = shortBreakTimerDuration
-                , _longBreakInitialTimer = longBreakTimerDuration
                 , _longBreakTimer = longBreakTimerDuration
                 , _taskEditor = editor (TaskEdit Insert) (Just 5) ""
-                , _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskEdit Insert, TaskEdit Edit, Commands]
+                , _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskEdit Insert, TaskEdit Edit, Commands, Config]
                 , _taskList = taskListWidget
                 }
 
@@ -148,12 +150,12 @@ handleEvent ev =
                     case (k, ms) of
                         (V.KIns, []) -> do
                             let insertedContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-                            taskAlreadyExists <- liftIO $ TKF.taskExists insertedContent
+                            taskAlreadyExists <- liftIO $ taskExists insertedContent
                             if not taskAlreadyExists && not (Txt.null insertedContent)
                                 then do
-                                    let task = TK.mkTask insertedContent $ Just False
+                                    let task = mkTask insertedContent $ Just False
                                     taskList .= BL.listInsert (length $ s ^. taskList) task (s ^. taskList)
-                                    _ <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.AppendTask task)
+                                    _ <- liftIO $ writeTasks updateTaskList (AppendTask task)
                                     taskEditor .= editor (TaskEdit Insert) (Just 5) ""
                                     focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
                                 else do
@@ -170,9 +172,9 @@ handleEvent ev =
                             case selectedListTask of
                                 Just (_, selectedTask) -> do
                                     let editedContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-                                    taskAlreadyExists <- liftIO $ TKF.taskExists editedContent
+                                    taskAlreadyExists <- liftIO $ taskExists editedContent
                                     when (not taskAlreadyExists && not (Txt.null editedContent)) $ do
-                                        modifiedTaskList <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.EditTask selectedTask editedContent)
+                                        modifiedTaskList <- liftIO $ writeTasks updateTaskList (EditTask selectedTask editedContent)
                                         taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                                         taskEditor .= editor (TaskEdit Edit) (Just 5) ""
                                         focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
@@ -192,9 +194,15 @@ handleEvent ev =
                             timerRunning .= not (s ^. timerRunning)
                         (V.KChar 'r', []) -> do
                             case cfs of
-                                TaskList Pomodoro -> pomodoroTimer .= s ^. pomodoroInitialTimer
-                                TaskList ShortBreak -> shortBreakTimer .= s ^. shortBreakInitialTimer
-                                TaskList LongBreak -> longBreakTimer .= s ^. longBreakInitialTimer
+                                TaskList Pomodoro -> do
+                                    initialTimer <- liftIO $ getInitialTimer R.Pomodoro
+                                    pomodoroTimer .= initialTimer
+                                TaskList ShortBreak -> do
+                                    initialTimer <- liftIO $ getInitialTimer R.ShortBreak
+                                    shortBreakTimer .= initialTimer
+                                TaskList LongBreak -> do
+                                    initialTimer <- liftIO $ getInitialTimer R.LongBreak
+                                    longBreakTimer .= initialTimer
                         (V.KChar 'i', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
@@ -209,6 +217,7 @@ handleEvent ev =
                         (V.KChar 'd', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
+                                    
                                     pomodoroInitialTimer .= max ((s ^. pomodoroInitialTimer) - 60) 1
                                     pomodoroTimer .= max ((s ^. pomodoroTimer) - 60) 1
                                 TaskList ShortBreak -> do
@@ -249,7 +258,7 @@ handleEvent ev =
                             let selectedListTask = BL.listSelectedElement (s ^. taskList)
                             case selectedListTask of
                                 Just (_, selectedTask) -> do
-                                    let selectedTaskContent = selectedTask ^. TK.taskContent
+                                    let selectedTaskContent = selectedTask ^. R.taskContent
                                     taskEditor .= editor (TaskEdit Edit) (Just 5) selectedTaskContent
                                     focus .= BF.focusSetCurrent (TaskEdit Edit) (s ^. focus)
                                 Nothing -> return ()
@@ -257,14 +266,16 @@ handleEvent ev =
                             let selectedListTask = BL.listSelectedElement (s ^. taskList)
                             case selectedListTask of
                                 Just (_, selectedTask) -> do
-                                    modifiedTaskList <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.ChangeTaskCompletion selectedTask)
+                                    modifiedTaskList <- liftIO $ writeTasks updateTaskList (ChangeTaskCompletion selectedTask)
                                     taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                                 Nothing -> return ()
+                        (V.KChar 'p', []) -> do
+                            focus .= BF.focusSetCurrent Config (s ^. focus)
                         (V.KDel, []) -> do
                             let selectedListTask = BL.listSelectedElement (s ^. taskList)
                             case selectedListTask of
                                 Just (selectedIndex, selectedTask) -> do
-                                    modifiedTaskList <- liftIO $ TKF.writeTasks TK.updateTaskList (TK.DeleteTask selectedTask)
+                                    modifiedTaskList <- liftIO $ writeTasks updateTaskList (DeleteTask selectedTask)
                                     if selectedIndex - 1 == length modifiedTaskList
                                         then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
                                         else
@@ -280,51 +291,12 @@ handleEvent ev =
                 _ -> return ()
         _ -> return ()
 
-stopTimerAndAlert :: String -> EventM Name AppState ()
-stopTimerAndAlert msg = do
-    timerRunning .= False
-    _ <- liftIO $ forkIO NT.playAlertSound
-    NT.alertRoundEnded msg
-
-finishShortBreakRound :: AppState -> EventM Name AppState ()
-finishShortBreakRound s = do
-    pomodoroCycleCounter .= (s ^. pomodoroCycleCounter) + 1
-    updatedCycleCounter <- uses pomodoroCycleCounter id
-    if updatedCycleCounter == 4
-        then do
-            focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
-        else focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-
-tickTimer :: AppState -> EventM Name AppState ()
-tickTimer s
-    | s ^. timerRunning = case BF.focusGetCurrent (s ^. focus) of
-        Just (TaskList Pomodoro) -> do
-            pomodoroTimer .= max ((s ^. pomodoroTimer) - 1) 0
-            when (s ^. pomodoroTimer == 0) $ do
-                pomodoroTimer .= s ^. pomodoroInitialTimer
-                stopTimerAndAlert "Pomodoro round ended!"
-                focus .= BF.focusSetCurrent (TaskList ShortBreak) (s ^. focus)
-        Just (TaskList ShortBreak) -> do
-            shortBreakTimer .= max ((s ^. shortBreakTimer) - 1) 0
-            when (s ^. shortBreakTimer == 0) $ do
-                shortBreakTimer .= s ^. shortBreakInitialTimer
-                stopTimerAndAlert "Short break ended!"
-                finishShortBreakRound s
-        Just (TaskList LongBreak) -> do
-            longBreakTimer .= max ((s ^. longBreakTimer) - 1) 0
-            when (s ^. longBreakTimer == 0) $ do
-                longBreakTimer .= s ^. longBreakInitialTimer
-                stopTimerAndAlert "Long break ended!"
-                focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-                pomodoroCycleCounter .= 0
-        _ -> return ()
-    | otherwise = return ()
-
 drawUI :: AppState -> [Widget Name]
 drawUI s =
     case BF.focusGetCurrent (s ^. focus) of
         fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList s <=> drawTaskEditor s <=> drawCommands fcs]
         Just Commands -> [B.border $ C.center drawCommandsScreen]
+        Just Config -> [drawConfig]
         _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList s <=> drawCommandsTip]
 
 label :: String -> Widget Name
@@ -405,7 +377,7 @@ drawTaskList s =
         B.borderWithLabel (str "Tasks")
         $ BL.renderList drawTaskListItem (BF.focusGetCurrent (s ^. focus) == Just (TaskList Pomodoro)) (s ^. taskList)
 
-drawTaskListItem :: Bool -> TK.Task -> Widget Name
+drawTaskListItem :: Bool -> Task -> Widget Name
 drawTaskListItem sel task
     | sel =
         withAttr selectedTaskAttr $
@@ -414,14 +386,14 @@ drawTaskListItem sel task
     | otherwise =
         taskListItem task
 
-taskListItem :: TK.Task -> Widget Name
+taskListItem :: Task -> Widget Name
 taskListItem task =
     vBox
         [ withBorderStyle BS.unicodeRounded $
             B.border $
                 padLeft (Pad 1) $
-                    txtWrap (task ^. TK.taskContent)
-                        <=> if task ^. TK.taskCompleted
+                    txtWrap (task ^. R.taskContent)
+                        <=> if task ^. R.taskCompleted
                             then
                                 withAttr taskCompletedLabelAttr $
                                     padTop (Pad 1) $

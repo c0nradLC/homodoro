@@ -1,22 +1,35 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Task.File (
+module Task(
     createTasksFileIfNotExists,
     taskExists,
     getTasks,
     writeTasks,
+    mkTask,
+    updateTaskList,
 )
 where
 
-import Control.Lens (view)
+import Control.Lens (view, over, traversed, filtered, (%~), (.~))
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as T
 import qualified System.Directory as D
 import qualified System.FilePath as FP
-import qualified Task.Task as TK (Task (..), TaskListOperation, TaskListUpdate, taskContent)
 import qualified Config as CFG
+import Resources (Task (..), TaskListUpdate, TaskListOperation (..), taskContent, taskCompleted)
+
+mkTask :: T.Text -> Maybe Bool -> Task
+mkTask txt mb
+    | Just b <- mb = Task{_taskContent = txt, _taskCompleted = b}
+    | Nothing <- mb = Task{_taskContent = txt, _taskCompleted = False}
+
+updateTaskList :: TaskListUpdate
+updateTaskList (AppendTask task) = (task :)
+updateTaskList (DeleteTask task) = filter (/= task)
+updateTaskList (ChangeTaskCompletion targetTask) = over (traversed . filtered (== targetTask)) (taskCompleted %~ not)
+updateTaskList (EditTask task newContent) = over (traversed . filtered (== task)) (taskContent .~ newContent)
 
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
@@ -25,7 +38,7 @@ createTasksFileIfNotExists = do
     fileExists <- D.doesFileExist filePath
     unless fileExists $ do BSL.writeFile filePath ""
 
-writeTasks :: TK.TaskListUpdate -> TK.TaskListOperation -> IO [TK.Task]
+writeTasks :: TaskListUpdate -> TaskListOperation -> IO [Task]
 writeTasks function task = do
     tasks <- getTasks
     tasksFilePath <- CFG.getTasksFilePath
@@ -41,11 +54,11 @@ taskExists content = do
     fileTasks <- getTasks
     case fileTasks of
         Just tasks -> do
-            let tasksContents = map (view TK.taskContent) tasks
+            let tasksContents = map (view taskContent) tasks
             return $ content `elem` tasksContents
         Nothing -> return False
 
-getTasks :: IO (Maybe [TK.Task])
+getTasks :: IO (Maybe [Task])
 getTasks = do
     tasksFilePath <- CFG.getTasksFilePath
     tasksFromFile <- BSL.readFile tasksFilePath

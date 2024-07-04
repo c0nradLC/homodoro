@@ -1,11 +1,9 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Config (
-    Config (..),
     createConfigFileIfNotExists,
-    getTasksFilePath
+    getTasksFilePath,
+    getInitialTimer
 )
 where
 
@@ -13,35 +11,16 @@ import qualified System.Directory as D
 import qualified System.FilePath as FP
 import qualified Data.ByteString.Lazy as BSL
 import Data.Aeson hiding ((.=))
-import Data.Aeson.TH (deriveJSON)
 import qualified Resources as R
 import Control.Monad (unless)
-import Control.Lens (makeLenses)
 import Control.Lens.Getter ((^.))
+import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigFileUpdate, activeTasksFilePath, pomodoroInitialTimer, shortBreakInitialTimer, longBreakInitialTimer)
+import Control.Monad.Cont (MonadIO(liftIO))
 
-data Config = Config
-    { _pomodoroInitialTimer :: Int
-    , _shortBreakInitialTimer :: Int
-    , _longBreakInitialTimer :: Int
-    , _activeTasksFilePath :: FilePath
-    , _archivedTasksFilePath :: FilePath
-    , _dailyTasksMode :: Bool --This will make tasks be grouped by date, just like the archived tasks
-    }
-deriveJSON defaultOptions ''Config
-makeLenses ''Config
-
-data ConfigFileOperation
-    = ToggleDailyTasksMode
-    | UpdateInitialTimer R.Timer Int
-    | SetActiveTasksFilePath FilePath
-    | SetArchivedTasksFilePath FilePath
-
-type ConfigFileUpdate = ConfigFileOperation -> Config -> Config
-
-defaultConfig :: IO Config
+defaultConfig :: IO ConfigFile
 defaultConfig = do
     xdgDataPath <- D.getXdgDirectory D.XdgData ""
-    return Config {
+    return ConfigFile {
       _pomodoroInitialTimer = 1500
     , _shortBreakInitialTimer = 300
     , _longBreakInitialTimer = 900
@@ -63,12 +42,12 @@ getConfigFilePath = do
     homePath <- D.getXdgDirectory D.XdgConfig ""
     pure $ homePath FP.</> "homodoro" FP.</> "config"
 
-writeConfig :: Config -> IO ()
+writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
     configFilePath <- getConfigFilePath
     BSL.writeFile configFilePath $ encode cfg
 
-getConfig :: IO Config
+getConfig :: IO ConfigFile
 getConfig = do
     configFilePath <- getConfigFilePath
     configFileContent <- BSL.readFile configFilePath
@@ -89,3 +68,11 @@ getTasksFilePath :: IO FilePath
 getTasksFilePath = do
     config <- getConfig
     return $ config ^. activeTasksFilePath
+
+getInitialTimer :: R.Timer -> IO Int
+getInitialTimer timer = do
+    config <- getConfig
+    case timer of
+        R.Pomodoro -> return $ config ^. pomodoroInitialTimer
+        R.ShortBreak -> return $ config ^. shortBreakInitialTimer
+        R.LongBreak -> return $ config ^. longBreakInitialTimer

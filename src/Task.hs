@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Task(
+module Task (
     createTasksFileIfNotExists,
     taskExists,
     getTasks,
@@ -10,15 +10,15 @@ module Task(
 )
 where
 
-import Control.Lens (view, over, traversed, filtered, (%~), (.~))
+import qualified Config as CFG
+import Control.Lens (filtered, over, traversed, view, (%~), (.~))
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as T
+import Resources (Task (..), TaskListOperation (..), TaskListUpdate, taskCompleted, taskContent)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
-import qualified Config as CFG
-import Resources (Task (..), TaskListUpdate, TaskListOperation (..), taskContent, taskCompleted)
 
 mkTask :: T.Text -> Maybe Bool -> Task
 mkTask txt mb

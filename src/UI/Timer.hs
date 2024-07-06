@@ -1,16 +1,16 @@
-module UI.Timer
-(
-    drawTimers
+module UI.Timer (
+    drawTimers,
 )
 where
-import Resources (AppState, Name (TaskList), Timer (Pomodoro, ShortBreak, LongBreak), focus, pomodoroTimer, shortBreakTimer, longBreakTimer, pomodoroCycleCounter)
-import Brick (Widget, withAttr, padLeftRight, str, (<+>), (<=>), padTopBottom)
+
+import Brick (Widget, padLeftRight, padTopBottom, str, withAttr, (<+>), (<=>))
 import qualified Brick.Focus as BF
-import qualified Brick.Widgets.Center as C
-import Control.Lens ( (^.) )
-import UI.Attributes (selectedTimerAttr, timerAttr)
 import qualified Brick.Widgets.Border as B
+import qualified Brick.Widgets.Center as C
+import Control.Lens ((^.))
+import Resources (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCycleCounter, pomodoroTimer, shortBreakTimer)
 import Text.Printf (printf)
+import UI.Attributes (selectedTimerAttr, timerAttr)
 
 drawTimers :: AppState -> Widget Name
 drawTimers s =

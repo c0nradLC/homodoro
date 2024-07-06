@@ -1,5 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Resources (
     Name (..),
@@ -26,7 +26,7 @@ module Resources (
     focus,
     activeTasksFilePath,
     taskContent,
-    taskCompleted
+    taskCompleted,
 )
 where
 
@@ -34,9 +34,9 @@ import qualified Brick.Focus as BF
 import Brick.Widgets.Edit (Editor)
 import qualified Brick.Widgets.List as BL
 import Control.Lens
-import qualified Data.Text as Txt
+import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
-import Data.Aeson.TH (deriveJSON, defaultOptions)
+import qualified Data.Text as Txt
 
 data Timer
     = Pomodoro
@@ -84,18 +84,16 @@ data ConfigFile = ConfigFile
     , _longBreakInitialTimer :: Int
     , _activeTasksFilePath :: FilePath
     , _archivedTasksFilePath :: FilePath
-    , _dailyTasksMode :: Bool --This will make tasks be grouped by date, just like the archived tasks
     }
 deriveJSON defaultOptions ''ConfigFile
 makeLenses ''ConfigFile
 
 data ConfigFileOperation
-    = ToggleDailyTasksMode
-    | UpdateInitialTimer Timer Int
+    = UpdateInitialTimer Timer Int
     | SetActiveTasksFilePath FilePath
     | SetArchivedTasksFilePath FilePath
 
-type ConfigFileUpdate = ConfigFileOperation -> ConfigFile -> ConfigFile
+type ConfigFileUpdate = ConfigFileOperation -> IO ()
 
 data AppState = AppState
     { _timerRunning :: Bool

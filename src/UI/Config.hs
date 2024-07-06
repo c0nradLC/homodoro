@@ -1,11 +1,11 @@
-module UI.Config 
-(
-    drawConfig
+module UI.Config (
+    drawConfig,
 )
 where
+
+import Brick (BrickEvent (AppEvent), EventM, Widget, str)
 import Control.Monad.State.Class (get)
-import Brick (Widget, str, BrickEvent (AppEvent), EventM)
-import Resources (Name, Tick (Tick), AppState)
+import Resources (AppState, Name, Tick (Tick))
 import Timer (tickTimer)
 
 drawConfig :: Widget Name

@@ -27,6 +27,9 @@ module Resources (
     activeTasksFilePath,
     taskContent,
     taskCompleted,
+    pomodoroInitialTimer,
+    shortBreakInitialTimer,
+    longBreakInitialTimer
 )
 where
 
@@ -93,7 +96,7 @@ data ConfigFileOperation
     | SetActiveTasksFilePath FilePath
     | SetArchivedTasksFilePath FilePath
 
-type ConfigFileUpdate = ConfigFileOperation -> IO ()
+type ConfigFileUpdate = ConfigFileOperation -> ConfigFile -> ConfigFile
 
 data AppState = AppState
     { _timerRunning :: Bool

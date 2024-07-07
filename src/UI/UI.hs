@@ -36,8 +36,8 @@ import Brick.Widgets.Edit (
  )
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
-import Config (getInitialTimer)
-import qualified Config as CFG (createConfigFileIfNotExists, updateConfig)
+import Config (getInitialTimer, getConfig)
+import qualified Config as CFG (createConfigFileIfNotExists, updateConfig, writeConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((+=), (.=), (^.))
 import Control.Monad.State (
@@ -66,7 +66,7 @@ import Resources (
     shortBreakTimer,
     taskEditor,
     taskList,
-    timerRunning,
+    timerRunning, pomodoroInitialTimer, longBreakInitialTimer, shortBreakInitialTimer,
  )
 import qualified Resources as R
 import Task (getTasks, mkTask, taskExists, updateTaskList, writeTasks)
@@ -200,58 +200,82 @@ handleEvent ev =
                             case cfs of
                                 TaskList Pomodoro -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro 60)
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 60)) config
                                     pomodoroTimer += 60
                                 TaskList ShortBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak 60)
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 60)) config
                                     shortBreakTimer += 60
                                 TaskList LongBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak 60)
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (config ^. longBreakInitialTimer + 60)) config
                                     longBreakTimer += 60
                         (V.KChar 'd', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (-60))
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (max ((config ^. pomodoroInitialTimer) - 60) 1)) config
                                     pomodoroTimer .= max ((s ^. pomodoroTimer) - 60) 1
                                 TaskList ShortBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (-60))
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (max ((config ^. shortBreakInitialTimer) - 60) 1)) config
                                     shortBreakTimer .= max ((s ^. shortBreakTimer) - 60) 1
                                 TaskList LongBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (-60))
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (max ((config ^. longBreakInitialTimer) - 60) 1)) config
                                     longBreakTimer .= max ((s ^. longBreakTimer) - 60) 1
                         (V.KChar 'I', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro 10)
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 10)) config
                                     pomodoroTimer += 10
                                 TaskList ShortBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak 10)
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 10)) config
                                     shortBreakTimer += 10
                                 TaskList LongBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak 10)
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (config ^. longBreakInitialTimer + 10)) config
                                     longBreakTimer += 10
                         (V.KChar 'D', []) -> do
                             case cfs of
                                 TaskList Pomodoro -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (-10))
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (max ((config ^. pomodoroInitialTimer) - 10) 1)) config
                                     pomodoroTimer .= max ((s ^. pomodoroTimer) - 10) 1
                                 TaskList ShortBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (-10))
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (max ((config ^. shortBreakInitialTimer) - 10) 1)) config
                                     shortBreakTimer .= max ((s ^. shortBreakTimer) - 10) 1
                                 TaskList LongBreak -> do
                                     _ <- liftIO $ forkIO $ do
-                                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (-10))
-                                    longBreakTimer .= max ((s ^. longBreakTimer) - 10) 1
+                                        config <- getConfig
+                                        CFG.writeConfig $
+                                            CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (max ((config ^. longBreakInitialTimer) - 10) 1)) config
+                                    longBreakTimer .= max ((s ^. shortBreakTimer) - 10) 1
                         (V.KBackTab, []) -> do
                             timerRunning .= False
                             case cfs of

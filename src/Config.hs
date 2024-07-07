@@ -5,7 +5,8 @@ module Config (
     getTasksFilePath,
     getInitialTimer,
     updateConfig,
-    getConfig,
+    writeConfig,
+    getConfig
 )
 where
 
@@ -55,17 +56,14 @@ getConfig = do
     maybe defaultConfig return (decode configFileContent)
 
 updateConfig :: ConfigFileUpdate
-updateConfig cop = do
-    cfg <- getConfig
-    let updatedConfig = case cop of
-            UpdateInitialTimer timer time ->
-                case timer of
-                    R.Pomodoro -> cfg{_pomodoroInitialTimer = max ((cfg ^. pomodoroInitialTimer) + time) 1}
-                    R.ShortBreak -> cfg{_shortBreakInitialTimer = time}
-                    R.LongBreak -> cfg{_longBreakInitialTimer = time}
-            SetActiveTasksFilePath fp -> cfg{_activeTasksFilePath = fp}
-            SetArchivedTasksFilePath fp -> cfg{_archivedTasksFilePath = fp}
-     in writeConfig updatedConfig
+updateConfig cop cfg =
+    case cop of
+        UpdateInitialTimer timer time -> case timer of
+            R.Pomodoro -> cfg  {_pomodoroInitialTimer = time}
+            R.ShortBreak -> cfg  {_shortBreakInitialTimer = time}
+            R.LongBreak -> cfg  {_longBreakInitialTimer = time}
+        SetActiveTasksFilePath fp -> cfg {_activeTasksFilePath = fp}
+        SetArchivedTasksFilePath fp -> cfg {_archivedTasksFilePath = fp}
 
 getTasksFilePath :: IO FilePath
 getTasksFilePath = do

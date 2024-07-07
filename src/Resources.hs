@@ -26,10 +26,7 @@ module Resources (
     focus,
     activeTasksFilePath,
     taskContent,
-    taskCompleted,
-    pomodoroInitialTimer,
-    shortBreakInitialTimer,
-    longBreakInitialTimer
+    taskCompleted
 )
 where
 

@@ -6,7 +6,7 @@ module Config (
     getInitialTimer,
     updateConfig,
     writeConfig,
-    getConfig
+    getConfig,
 )
 where
 
@@ -14,7 +14,7 @@ import Control.Lens.Getter ((^.))
 import Control.Monad (unless)
 import Data.Aeson hiding ((.=))
 import qualified Data.ByteString.Lazy as BSL
-import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigFileUpdate, activeTasksFilePath, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer)
+import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigFileUpdate, tasksFilePath, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer)
 import qualified Resources as R
 import qualified System.Directory as D
 import qualified System.FilePath as FP
@@ -27,8 +27,9 @@ defaultConfig = do
             { _pomodoroInitialTimer = 1500
             , _shortBreakInitialTimer = 300
             , _longBreakInitialTimer = 900
-            , _activeTasksFilePath = xdgDataPath FP.</> "homodoro" FP.</> "tasks"
-            , _archivedTasksFilePath = xdgDataPath FP.</> "homodoro" FP.</> "archived_tasks"
+            , _muteAlarm = False
+            , _disableNotification = False
+            , _tasksFilePath = xdgDataPath FP.</> "homodoro" FP.</> "tasks"
             }
 
 createConfigFileIfNotExists :: IO ()
@@ -59,16 +60,15 @@ updateConfig :: ConfigFileUpdate
 updateConfig cop cfg =
     case cop of
         UpdateInitialTimer timer time -> case timer of
-            R.Pomodoro -> cfg  {_pomodoroInitialTimer = time}
-            R.ShortBreak -> cfg  {_shortBreakInitialTimer = time}
-            R.LongBreak -> cfg  {_longBreakInitialTimer = time}
-        SetActiveTasksFilePath fp -> cfg {_activeTasksFilePath = fp}
-        SetArchivedTasksFilePath fp -> cfg {_archivedTasksFilePath = fp}
+            R.Pomodoro -> cfg{_pomodoroInitialTimer = time}
+            R.ShortBreak -> cfg{_shortBreakInitialTimer = time}
+            R.LongBreak -> cfg{_longBreakInitialTimer = time}
+        SetTasksFilePath fp -> cfg{_tasksFilePath = fp}
 
 getTasksFilePath :: IO FilePath
 getTasksFilePath = do
     config <- getConfig
-    return $ config ^. activeTasksFilePath
+    return $ config ^. tasksFilePath
 
 getInitialTimer :: R.Timer -> IO Int
 getInitialTimer timer = do

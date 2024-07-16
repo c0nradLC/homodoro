@@ -5,6 +5,7 @@ module Resources (
     Name (..),
     Timer (..),
     TaskAction (..),
+    TaskGroup (..),
     AppState (..),
     Tick (..),
     ConfigFile (..),
@@ -14,7 +15,7 @@ module Resources (
     TaskListUpdate,
     TaskListOperation (..),
     timerRunning,
-    pomodoroCycleCounter,
+    pomodoroCounter,
     pomodoroTimer,
     shortBreakTimer,
     longBreakTimer,
@@ -24,9 +25,11 @@ module Resources (
     taskEditor,
     taskList,
     focus,
-    activeTasksFilePath,
+    tasksFilePath,
     taskContent,
-    taskCompleted
+    taskCompleted,
+    createdAt,
+    archivedAt
 )
 where
 
@@ -37,6 +40,7 @@ import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
 import qualified Data.Text as Txt
+import Data.Time (Day)
 
 data Timer
     = Pomodoro
@@ -49,9 +53,14 @@ data TaskAction
     | Insert
     deriving (Show, Eq, Ord)
 
+data TaskGroup
+    = Active
+    | Archived
+    deriving (Show, Eq, Ord)
+
 data Name
     = TaskEdit TaskAction
-    | TaskList Timer
+    | TaskList Timer TaskGroup
     | Commands
     | Config
     deriving (Show, Eq, Ord)
@@ -61,6 +70,8 @@ data Tick = Tick
 data Task = Task
     { _taskContent :: T.Text
     , _taskCompleted :: Bool
+    , _createdAt :: Day
+    , _archivedAt :: Maybe Day
     }
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
@@ -70,34 +81,35 @@ data TaskListOperation
     | DeleteTask Task
     | EditTask Task T.Text
     | ChangeTaskCompletion Task
+    | ArchiveTask Task Day
 
 type TaskListUpdate = TaskListOperation -> [Task] -> [Task]
 
 instance Eq Task where
     (==) :: Task -> Task -> Bool
-    (Task content1 _) == (Task content2 _) =
+    (Task content1 _ _ _) == (Task content2 _ _ _) =
         content1 == content2
 
 data ConfigFile = ConfigFile
     { _pomodoroInitialTimer :: Int
     , _shortBreakInitialTimer :: Int
     , _longBreakInitialTimer :: Int
-    , _activeTasksFilePath :: FilePath
-    , _archivedTasksFilePath :: FilePath
+    , _muteAlarm :: Bool
+    , _disableNotification :: Bool
+    , _tasksFilePath :: FilePath
     }
 deriveJSON defaultOptions ''ConfigFile
 makeLenses ''ConfigFile
 
 data ConfigFileOperation
     = UpdateInitialTimer Timer Int
-    | SetActiveTasksFilePath FilePath
-    | SetArchivedTasksFilePath FilePath
+    | SetTasksFilePath FilePath
 
 type ConfigFileUpdate = ConfigFileOperation -> ConfigFile -> ConfigFile
 
 data AppState = AppState
     { _timerRunning :: Bool
-    , _pomodoroCycleCounter :: Int
+    , _pomodoroCounter :: Int
     , _pomodoroTimer :: Int
     , _shortBreakTimer :: Int
     , _longBreakTimer :: Int

@@ -8,14 +8,14 @@ import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
 import Control.Lens ((^.))
-import Resources (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCycleCounter, pomodoroTimer, shortBreakTimer)
+import Resources (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer)
 import Text.Printf (printf)
 import UI.Attributes (selectedTimerAttr, timerAttr)
 
 drawTimers :: AppState -> Widget Name
 drawTimers s =
     case BF.focusGetCurrent (s ^. focus) of
-        Just (TaskList timer) -> case timer of
+        Just (TaskList timer _) -> case timer of
             Pomodoro ->
                 (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
                     drawTimer (s ^. pomodoroTimer)
@@ -47,7 +47,7 @@ drawTimer timerDuration =
                             formatTimer timerDuration
 
 drawCyclesCounter :: AppState -> Widget Name
-drawCyclesCounter s = C.hCenter (label (formatCycleCounter (s ^. pomodoroCycleCounter)))
+drawCyclesCounter s = C.hCenter (label (formatCycleCounter (s ^. pomodoroCounter)))
 
 formatTimer :: Int -> String
 formatTimer timer =
@@ -57,4 +57,4 @@ formatTimer timer =
 
 formatCycleCounter :: Int -> String
 formatCycleCounter =
-    printf "Pomodoro cycles: %01d"
+    printf "Pomodoros: %01d"

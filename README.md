@@ -44,7 +44,7 @@ You can press `c` when not editing or creating a task to see the commands.
 - `r` Reset timer
 - `i/d` Increase/Decrease timer by 1min
 - `I/D` Increase/Decrease timer by 10sec
-- `Insert` Add a task
+- `t` Add a task
 - `e` Edit a task
 - `Del` Delete a task
 - `Ctrl + C` Change a task's status

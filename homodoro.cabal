@@ -33,7 +33,7 @@ executable homodoro
       UI.Timer
   hs-source-dirs:
       app
-     ,src 
+     ,src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson <3
@@ -53,4 +53,5 @@ executable homodoro
     , vector <1
     , vty <6.0
     , libnotify <2
+    , time <2
   default-language: Haskell2010

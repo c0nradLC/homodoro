@@ -68,7 +68,7 @@ import Resources
     shortBreakTimer,
     taskEditor,
     taskList,
-    timerRunning,
+    timerRunning, archivedAt,
   )
 import qualified Resources as R
 import Task (getTasks, mkTask, taskExists, updateTaskList, writeTasks, createTasksFileIfNotExists)
@@ -84,6 +84,7 @@ import UI.Attributes
 import UI.Config (drawConfig)
 import UI.Timer (drawTimers)
 import Data.Time (getCurrentTime, UTCTime (UTCTime))
+import Data.Maybe (isJust, isNothing)
 
 uiMain :: IO ()
 uiMain = do
@@ -113,7 +114,7 @@ createAppStateWithTasks
   shortBreakTimerDuration
   longBreakTimerDuration
   tasks =
-     let taskListWidget = BL.list (TaskList Pomodoro R.Active) (DV.fromList tasks) 1
+     let taskListWidget = BL.list (TaskList Pomodoro R.Active) (DV.fromList $ filter (\task -> isNothing (task ^. archivedAt)) tasks) 1
      in AppState
           { _timerRunning = False,
             _pomodoroCounter = 0,
@@ -121,7 +122,7 @@ createAppStateWithTasks
             _shortBreakTimer = shortBreakTimerDuration,
             _longBreakTimer = longBreakTimerDuration,
             _taskEditor = editor (TaskEdit Insert) (Just 5) "",
-            _focus = BF.focusRing [TaskList Pomodoro R.Active, TaskList ShortBreak R.Active, TaskList LongBreak R.Active, TaskEdit Insert, TaskEdit Edit, Commands, Config],
+            _focus = BF.focusRing [TaskList Pomodoro R.Active, TaskList ShortBreak R.Active, TaskList LongBreak R.Active, TaskEdit Insert, TaskEdit Edit, Commands, Config, TaskList Pomodoro R.Archived, TaskList ShortBreak R.Archived, TaskList LongBreak R.Archived],
             _taskList = taskListWidget
           }
 
@@ -182,7 +183,7 @@ handleEvent ev =
               focus .= BF.focusSetCurrent (TaskList Pomodoro R.Active) (s ^. focus)
             _ -> do
               BT.zoom taskEditor $ BE.handleEditorEvent ev
-        Just cfs@(TaskList _ _) ->
+        Just cfs@(TaskList timer taskGroup) ->
           case (k, ms) of
             (V.KChar 'q', []) -> do
               halt
@@ -191,31 +192,29 @@ handleEvent ev =
             (V.KChar 's', []) -> do
               timerRunning .= not (s ^. timerRunning)
             (V.KChar 'r', []) -> do
-              case cfs of
-                TaskList Pomodoro _ -> do
-                  initialTimer <- liftIO $ getInitialTimer R.Pomodoro
+              initialTimer <- liftIO $ getInitialTimer timer
+              case timer of
+                Pomodoro -> do
                   pomodoroTimer .= initialTimer
-                TaskList ShortBreak _ -> do
-                  initialTimer <- liftIO $ getInitialTimer R.ShortBreak
+                ShortBreak -> do
                   shortBreakTimer .= initialTimer
-                TaskList LongBreak _ -> do
-                  initialTimer <- liftIO $ getInitialTimer R.LongBreak
+                LongBreak -> do
                   longBreakTimer .= initialTimer
             (V.KChar 'i', []) -> do
-              case cfs of
-                TaskList Pomodoro _ -> do
+              case timer of
+                Pomodoro -> do
                   _ <- liftIO $ forkIO $ do
                     config <- getConfig
                     CFG.writeConfig $
                       CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 60)) config
                   pomodoroTimer += 60
-                TaskList ShortBreak _ -> do
+                ShortBreak -> do
                   _ <- liftIO $ forkIO $ do
                     config <- getConfig
                     CFG.writeConfig $
                       CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 60)) config
                   shortBreakTimer += 60
-                TaskList LongBreak _ -> do
+                LongBreak -> do
                   _ <- liftIO $ forkIO $ do
                     config <- getConfig
                     CFG.writeConfig $
@@ -287,9 +286,6 @@ handleEvent ev =
                 TaskList Pomodoro ctg -> focus .= BF.focusSetCurrent (TaskList ShortBreak ctg) (s ^. focus)
                 TaskList ShortBreak ctg -> focus .= BF.focusSetCurrent (TaskList LongBreak ctg) (s ^. focus)
                 TaskList LongBreak ctg -> focus .= BF.focusSetCurrent (TaskList Pomodoro ctg) (s ^. focus)
-            _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
-        Just (TaskList _ R.Active) ->
-          case (k, ms) of
             (V.KChar 'e', []) -> do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
@@ -330,6 +326,15 @@ handleEvent ev =
                   modifiedTaskList <- liftIO $ writeTasks updateTaskList (ArchiveTask selectedTask today)
                   taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
                 Nothing -> return ()
+            (V.KChar 'A', []) -> do
+              currentTaskList <- liftIO getTasks
+              case taskGroup of
+                R.Active -> do
+                  taskList .= BL.listReplace (DV.fromList $ filter (\task -> isJust (task ^. archivedAt)) currentTaskList) (Just 0) (s ^. taskList)
+                  focus .= BF.focusSetCurrent (TaskList timer R.Archived) (s ^. focus)
+                R.Archived -> do
+                  taskList .= BL.listReplace (DV.fromList $ filter (\task -> isNothing (task ^. archivedAt)) currentTaskList) (Just 0) (s ^. taskList)
+                  focus .= BF.focusSetCurrent (TaskList timer R.Active) (s ^. focus)
             _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
         Just Commands ->
           focus .= BF.focusSetCurrent (TaskList Pomodoro R.Active) (s ^. focus)
@@ -382,8 +387,15 @@ drawTaskEditorContent t = txt (Txt.unlines t)
 drawTaskList :: AppState -> Widget Name
 drawTaskList s = do
   let currentFocus = BF.focusGetCurrent (s ^. focus)
-    in B.borderWithLabel (str "Tasks")
-      $ BL.renderList drawTaskListItem (BF.focusGetCurrent (s ^. focus) == currentFocus) (s ^. taskList)
+    in case currentFocus of
+      Just (TaskList _ R.Active) ->
+        B.borderWithLabel (str "Tasks") $
+          BL.renderList drawTaskListItem (BF.focusGetCurrent (s ^. focus) == currentFocus) (s ^. taskList)
+      Just (TaskList _ R.Archived) -> do
+        B.borderWithLabel (str "Archived tasks")
+          $ BL.renderList drawTaskListItem (BF.focusGetCurrent (s ^. focus) == currentFocus) (s ^. taskList)
+      _ -> emptyWidget
+    
 
 drawTaskListItem :: Bool -> Task -> Widget Name
 drawTaskListItem sel task

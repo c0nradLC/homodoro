@@ -15,7 +15,7 @@ import UI.Attributes (selectedTimerAttr, timerAttr)
 drawTimers :: AppState -> Widget Name
 drawTimers s =
     case BF.focusGetCurrent (s ^. focus) of
-        Just (TaskList timer _) -> case timer of
+        Just (TaskList timer) -> case timer of
             Pomodoro ->
                 (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
                     drawTimer (s ^. pomodoroTimer)

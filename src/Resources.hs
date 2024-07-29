@@ -5,7 +5,6 @@ module Resources (
     Name (..),
     Timer (..),
     TaskAction (..),
-    TaskGroup (..),
     AppState (..),
     Tick (..),
     ConfigFile (..),
@@ -16,6 +15,7 @@ module Resources (
     TaskListOperation (..),
     timerRunning,
     pomodoroCounter,
+    pomodoroCyclesCounter,
     pomodoroTimer,
     shortBreakTimer,
     longBreakTimer,
@@ -27,9 +27,7 @@ module Resources (
     focus,
     tasksFilePath,
     taskContent,
-    taskCompleted,
-    createdAt,
-    archivedAt
+    taskCompleted
 )
 where
 
@@ -40,7 +38,7 @@ import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
 import qualified Data.Text as Txt
-import Data.Time (Day)
+import Data.UUID (UUID)
 
 data Timer
     = Pomodoro
@@ -53,14 +51,9 @@ data TaskAction
     | Insert
     deriving (Show, Eq, Ord)
 
-data TaskGroup
-    = Active
-    | Archived
-    deriving (Show, Eq, Ord)
-
 data Name
     = TaskEdit TaskAction
-    | TaskList Timer TaskGroup
+    | TaskList Timer 
     | Commands
     | Config
     deriving (Show, Eq, Ord)
@@ -68,27 +61,25 @@ data Name
 data Tick = Tick
 
 data Task = Task
-    { _taskContent :: T.Text
+    { _taskId :: UUID
+    , _taskContent :: T.Text
     , _taskCompleted :: Bool
-    , _createdAt :: Day
-    , _archivedAt :: Maybe Day
     }
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
+
+instance Eq Task where
+    (==) :: Task -> Task -> Bool
+    (Task taskId1 _ _) == (Task taskId2 _ _) =
+        taskId1 == taskId2
 
 data TaskListOperation
     = AppendTask Task
     | DeleteTask Task
     | EditTask Task T.Text
     | ChangeTaskCompletion Task
-    | ArchiveTask Task Day
 
 type TaskListUpdate = TaskListOperation -> [Task] -> [Task]
-
-instance Eq Task where
-    (==) :: Task -> Task -> Bool
-    (Task content1 _ _ _) == (Task content2 _ _ _) =
-        content1 == content2
 
 data ConfigFile = ConfigFile
     { _pomodoroInitialTimer :: Int
@@ -110,6 +101,7 @@ type ConfigFileUpdate = ConfigFileOperation -> ConfigFile -> ConfigFile
 data AppState = AppState
     { _timerRunning :: Bool
     , _pomodoroCounter :: Int
+    , _pomodoroCyclesCounter :: Int
     , _pomodoroTimer :: Int
     , _shortBreakTimer :: Int
     , _longBreakTimer :: Int

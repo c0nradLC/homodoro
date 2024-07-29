@@ -6,37 +6,31 @@ module Task (
     getTasks,
     writeTasks,
     mkTask,
-    updateTaskList,
+    updateTaskList
 )
 where
 
 import qualified Config as CFG
-import Control.Lens (filtered, over, traversed, view, (%~), (.~), (?~))
+import Control.Lens (filtered, over, traversed, view, (%~), (.~))
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as T
-import Resources (Task (..), TaskListOperation (..), TaskListUpdate, taskCompleted, taskContent, archivedAt)
+import Resources (Task (..), TaskListOperation (..), TaskListUpdate, taskCompleted, taskContent)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
-import Data.Time (getCurrentTime, UTCTime (UTCTime))
+import Data.UUID.V4 (nextRandom)
 
-mkTask :: T.Text -> Maybe Bool -> IO Task
-mkTask txt mb = do
-    currentTime <- getCurrentTime
-    let UTCTime today _ = currentTime
-    case mb of 
-        Just b -> do
-            return Task{_taskContent = txt, _taskCompleted = b, _createdAt = today, _archivedAt = Nothing}
-        Nothing -> do 
-            return Task{_taskContent = txt, _taskCompleted = False, _createdAt = today, _archivedAt = Nothing}
+mkTask :: T.Text -> IO Task
+mkTask txt = do
+    taskId <- nextRandom
+    return Task{_taskId = taskId, _taskContent = txt, _taskCompleted = False}
 
 updateTaskList :: TaskListUpdate
 updateTaskList (AppendTask task) = (task :)
 updateTaskList (DeleteTask task) = filter (/= task)
 updateTaskList (ChangeTaskCompletion task) = over (traversed . filtered (== task)) (taskCompleted %~ not)
 updateTaskList (EditTask task newContent) = over (traversed . filtered (== task)) (taskContent .~ newContent)
-updateTaskList (ArchiveTask task currentDay) = over (traversed . filtered (== task)) (archivedAt ?~ currentDay)
 
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
@@ -46,10 +40,10 @@ createTasksFileIfNotExists = do
     unless fileExists $ do BSL.writeFile filePath ""
 
 writeTasks :: TaskListUpdate -> TaskListOperation -> IO [Task]
-writeTasks function task = do
+writeTasks updateFunction task = do
     tasks <- getTasks
     tasksFilePath <- CFG.getTasksFilePath
-    let modifiedTaskList = function task tasks
+    let modifiedTaskList = updateFunction task tasks
     BSL.writeFile tasksFilePath $ encode modifiedTaskList
     return modifiedTaskList
 

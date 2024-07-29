@@ -12,7 +12,6 @@ A very simple terminal application to use the pomodoro technique and keep track 
   - [Commands](#commands)
   - [Tasks file](#tasks-file)
   - [Timers and their alerts](#timers-and-their-alerts)
-- [Todo](#todo)
 - [Misc](#misc)
 
 ## About the project
@@ -60,18 +59,6 @@ When a timer reaches zero an alarm sound should ring and a notification popup sh
 > The popup is shown using the [libnotify](https://hackage.haskell.org/package/libnotify) library
   
 > The alarm sound is played using [SDL2](https://hackage.haskell.org/package/sdl2) and [SDL2-mixer](https://hackage.haskell.org/package/sdl2-mixer)
-
-## Todo
-This list is not ordered by importance or preference.
-
-- [x] Add Nix support
-- [ ] Improve Nix integration
-- [ ] Persist set timer values
-- [ ] Allow to set a priority for each task
-- [ ] Allow to sort/move tasks in the list
-- [ ] Implement task archiving
-- [ ] GH Actions in the repo
-- [ ] Import/Export tasks to/from other formats
 
 ## Misc
 Written in Haskell using the [brick](https://github.com/jtdaugherty/brick) library. This was heavily inspired by the other brick programs featured in it's repo's [Featured Projects](https://github.com/jtdaugherty/brick#Featured-Projects).

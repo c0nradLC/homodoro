@@ -43,14 +43,17 @@ getConfigFilePath = do
   pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
 
 updateConfig :: ConfigFileUpdate
-updateConfig cop cfg = do
+updateConfig (UpdateInitialTimer timer time) = do
+  cfg <- getConfig
+  case timer of
+    R.Pomodoro -> writeConfig cfg {_pomodoroInitialTimer = max (_pomodoroInitialTimer cfg + time) 0}
+    R.ShortBreak -> writeConfig cfg {_shortBreakInitialTimer = max (_shortBreakInitialTimer cfg + time) 0}
+    R.LongBreak -> writeConfig cfg {_longBreakInitialTimer = max (_longBreakInitialTimer cfg + time) 0}
+
+writeConfig :: ConfigFile -> IO ()
+writeConfig cfg = do
   configFilePath <- getConfigFilePath
-  let config = case cop of
-        UpdateInitialTimer timer time -> case timer of
-          R.Pomodoro -> cfg {_pomodoroInitialTimer = max (_pomodoroInitialTimer cfg + time) 0}
-          R.ShortBreak -> cfg {_shortBreakInitialTimer = max (_shortBreakInitialTimer cfg + time) 0}
-          R.LongBreak -> cfg {_longBreakInitialTimer = max (_longBreakInitialTimer cfg + time) 0}
-  BSL.writeFile configFilePath $ encode config
+  BSL.writeFile configFilePath $ encode cfg
 
 getConfig :: IO ConfigFile
 getConfig = do

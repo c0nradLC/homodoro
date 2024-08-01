@@ -8,7 +8,7 @@ import qualified Brick.Focus as BF
 import Brick.Widgets.Edit (editor, getEditContents)
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
-import Config (getConfig, getInitialTimer, updateConfig)
+import Config (getInitialTimer, updateConfig)
 import Control.Concurrent (forkIO)
 import Control.Lens ((+=), (.=), (^.))
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
@@ -17,7 +17,7 @@ import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty as VE
 import Resources (AppState, ConfigFileOperation (UpdateInitialTimer), Name (Commands, TaskEdit, TaskList), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning)
-import Task (getTasks, mkTask, taskExists, updateTaskList, writeTasks)
+import Task (mkTask, taskExists, updateTaskList)
 import Timer (tickTimer)
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
@@ -31,11 +31,11 @@ handleEvent ev = do
         Just (TaskEdit Insert) ->
           case (k, ms) of
             (V.KIns, []) -> do
-              tasksFromFile <- liftIO getTasks
               let insertedContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-              if not (taskExists tasksFromFile insertedContent) && not (Txt.null insertedContent)
+              taskAlreadyExists <- liftIO $ taskExists insertedContent
+              if not (Txt.null insertedContent) && not taskAlreadyExists 
                 then do
-                  updatedTasks <- liftIO $ writeTasks updateTaskList (AppendTask (mkTask insertedContent))
+                  updatedTasks <- liftIO $ updateTaskList (AppendTask (mkTask insertedContent))
                   taskList .= BL.listReplace (DV.fromList updatedTasks) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                   taskEditor .= editor (TaskEdit Insert) (Just 5) ""
                   changeFocus (TaskList Pomodoro) s
@@ -52,10 +52,10 @@ handleEvent ev = do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
                 Just (_, selectedTask) -> do
-                  tasksFromFile <- liftIO getTasks
                   let editedContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-                  when (not (taskExists tasksFromFile editedContent) && not (Txt.null editedContent)) $ do
-                    updatedTasks <- liftIO $ writeTasks updateTaskList (EditTask selectedTask editedContent)
+                  taskAlreadyExists <- liftIO $ taskExists editedContent
+                  when (not (Txt.null editedContent) && not taskAlreadyExists) $ do
+                    updatedTasks <- liftIO $ updateTaskList (EditTask selectedTask editedContent)
                     taskList .= BL.listReplace (DV.fromList updatedTasks) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                     taskEditor .= editor (TaskEdit Edit) (Just 5) ""
                     changeFocus (TaskList Pomodoro) s
@@ -79,14 +79,14 @@ handleEvent ev = do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
                 Just (_, selectedTask) -> do
-                  modifiedTaskList <- liftIO $ writeTasks updateTaskList (ChangeTaskCompletion selectedTask)
+                  modifiedTaskList <- liftIO $ updateTaskList (ChangeTaskCompletion selectedTask)
                   taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
                 Nothing -> return ()
             (V.KDel, []) -> do
               let selectedListTask = BL.listSelectedElement (s ^. taskList)
               case selectedListTask of
                 Just (selectedIndex, selectedTask) -> do
-                  modifiedTaskList <- liftIO $ writeTasks updateTaskList (DeleteTask selectedTask)
+                  modifiedTaskList <- liftIO $ updateTaskList (DeleteTask selectedTask)
                   if selectedIndex - 1 == length modifiedTaskList
                     then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
                     else
@@ -111,65 +111,61 @@ handleEvent ev = do
                   shortBreakTimer .= initialTimer
                 LongBreak -> do
                   longBreakTimer .= initialTimer
-            (V.KChar 'i', []) -> do
-              config <- liftIO getConfig
+            (V.KChar 'i', []) -> 
               case timer of
                 Pomodoro -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer Pomodoro 60) config
+                    updateConfig (UpdateInitialTimer Pomodoro 60)
                   pomodoroTimer += 60
                 ShortBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer ShortBreak 60) config
+                    updateConfig (UpdateInitialTimer ShortBreak 60)
                   shortBreakTimer += 60
                 LongBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer LongBreak 60) config
+                    updateConfig (UpdateInitialTimer LongBreak 60)
                   longBreakTimer += 60
-            (V.KChar 'd', []) -> do
-              config <- liftIO getConfig
+            (V.KChar 'd', []) -> 
               case cfs of
                 TaskList Pomodoro -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer Pomodoro (- 60)) config
+                    updateConfig (UpdateInitialTimer Pomodoro (- 60))
                   pomodoroTimer .= max ((s ^. pomodoroTimer) - 60) 0
                 TaskList ShortBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer ShortBreak (- 60)) config
+                    updateConfig (UpdateInitialTimer ShortBreak (- 60))
                   shortBreakTimer .= max ((s ^. shortBreakTimer) - 60) 0
                 TaskList LongBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer LongBreak (- 60)) config
+                    updateConfig (UpdateInitialTimer LongBreak (- 60))
                   longBreakTimer .= max ((s ^. longBreakTimer) - 60) 0
-            (V.KChar 'I', []) -> do
-              config <- liftIO getConfig
+            (V.KChar 'I', []) -> 
               case cfs of
                 TaskList Pomodoro -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer Pomodoro 10) config
+                    updateConfig (UpdateInitialTimer Pomodoro 10)
                   pomodoroTimer += 10
                 TaskList ShortBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer ShortBreak 10) config
+                    updateConfig (UpdateInitialTimer ShortBreak 10)
                   shortBreakTimer += 10
                 TaskList LongBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer LongBreak 10) config
+                    updateConfig (UpdateInitialTimer LongBreak 10)
                   longBreakTimer += 10
-            (V.KChar 'D', []) -> do
-              config <- liftIO getConfig
+            (V.KChar 'D', []) -> 
               case cfs of
                 TaskList Pomodoro -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer Pomodoro (- 10)) config
+                    updateConfig (UpdateInitialTimer Pomodoro (- 10))
                   pomodoroTimer .= max ((s ^. pomodoroTimer) - 10) 0
                 TaskList ShortBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer ShortBreak (- 10)) config
+                    updateConfig (UpdateInitialTimer ShortBreak (- 10))
                   shortBreakTimer .= max ((s ^. shortBreakTimer) - 10) 0
                 TaskList LongBreak -> do
                   _ <- liftIO $ forkIO $ do
-                    updateConfig (UpdateInitialTimer LongBreak (- 10)) config
+                    updateConfig (UpdateInitialTimer LongBreak (- 10))
                   longBreakTimer .= max ((s ^. shortBreakTimer) - 10) 0
             (V.KBackTab, []) -> do
               timerRunning .= False

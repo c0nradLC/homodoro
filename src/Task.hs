@@ -4,7 +4,6 @@ module Task
   ( createTasksFileIfNotExists,
     taskExists,
     getTasks,
-    writeTasks,
     mkTask,
     updateTaskList,
   )
@@ -20,15 +19,6 @@ import Resources (Task (..), TaskListOperation (..), TaskListUpdate, taskComplet
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 
-mkTask :: T.Text -> Task
-mkTask txt = Task {_taskContent = txt, _taskCompleted = False}
-
-updateTaskList :: TaskListUpdate
-updateTaskList (AppendTask task) = (task :)
-updateTaskList (DeleteTask task) = filter (/= task)
-updateTaskList (ChangeTaskCompletion task) = over (traversed . filtered (== task)) (taskCompleted %~ not)
-updateTaskList (EditTask task newContent) = over (traversed . filtered (== task)) (taskContent .~ newContent)
-
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
   filePath <- CFG.getTasksFilePath
@@ -36,13 +26,23 @@ createTasksFileIfNotExists = do
   fileExists <- D.doesFileExist filePath
   unless fileExists $ do BSL.writeFile filePath ""
 
-writeTasks :: TaskListUpdate -> TaskListOperation -> IO [Task]
-writeTasks updateFunction task = do
+mkTask :: T.Text -> Task
+mkTask txt = Task {_taskContent = txt, _taskCompleted = False}
+
+updateTaskList :: TaskListUpdate
+updateTaskList cop = do
   tasks <- getTasks
+  case cop of
+    (AppendTask task) -> writeTasks (task : tasks)
+    (DeleteTask task) -> writeTasks $ filter (/= task) tasks
+    (ChangeTaskCompletion task) -> writeTasks $ over (traversed . filtered (== task)) (taskCompleted %~ not) tasks
+    (EditTask task newContent) -> writeTasks $ over (traversed . filtered (== task)) (taskContent .~ newContent) tasks
+
+writeTasks :: [Task] -> IO [Task]
+writeTasks tasks = do
   tasksFilePath <- CFG.getTasksFilePath
-  let modifiedTaskList = updateFunction task tasks
-  BSL.writeFile tasksFilePath $ encode modifiedTaskList
-  return modifiedTaskList
+  BSL.writeFile tasksFilePath $ encode tasks
+  return tasks
 
 getTasks :: IO [Task]
 getTasks = do
@@ -53,7 +53,8 @@ getTasks = do
       return task
     Nothing -> return []
 
-taskExists :: [Task] -> T.Text -> Bool
-taskExists tasks content = do
+taskExists :: T.Text -> IO Bool
+taskExists content = do
+  tasks <- getTasks
   let tasksContents = map (view taskContent) tasks
-  content `elem` tasksContents
+  return $ content `elem` tasksContents

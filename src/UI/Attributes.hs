@@ -1,5 +1,5 @@
-module UI.Attributes (
-    attributes,
+module UI.Attributes
+  ( attributes,
     timerAttr,
     taskEditorAttr,
     selectedTaskAttr,
@@ -8,7 +8,7 @@ module UI.Attributes (
     taskCompletedWhiteBgLabelAttr,
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
-)
+  )
 where
 
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
@@ -17,17 +17,17 @@ import qualified Graphics.Vty as V
 
 attributes :: AttrMap
 attributes =
-    attrMap
-        V.defAttr
-        [ (timerAttr, V.black `on` V.white)
-        , (taskEditorAttr, V.black `on` V.white)
-        , (selectedTaskAttr, V.black `on` V.white)
-        , (selectedTimerAttr, V.black `on` V.white)
-        , (taskCompletedLabelAttr, V.defAttr `withForeColor` V.blue)
-        , (taskPendingLabelAttr, V.defAttr `withForeColor` V.red)
-        , (taskCompletedWhiteBgLabelAttr, V.blue `on` V.white)
-        , (taskPendingWhiteBgLabelAttr, V.red `on` V.white)
-        ]
+  attrMap
+    V.defAttr
+    [ (timerAttr, V.black `on` V.white),
+      (taskEditorAttr, V.black `on` V.white),
+      (selectedTaskAttr, V.black `on` V.white),
+      (selectedTimerAttr, V.black `on` V.white),
+      (taskCompletedLabelAttr, V.defAttr `withForeColor` V.blue),
+      (taskPendingLabelAttr, V.defAttr `withForeColor` V.red),
+      (taskCompletedWhiteBgLabelAttr, V.blue `on` V.white),
+      (taskPendingWhiteBgLabelAttr, V.red `on` V.white)
+    ]
 
 timerAttr :: AttrName
 timerAttr = attrName "timerAttr"

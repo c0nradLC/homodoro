@@ -4,13 +4,10 @@ module UI.UI (uiMain) where
 
 import Brick
   ( App (..),
-    BrickEvent (AppEvent, VtyEvent),
-    EventM,
     Padding (Pad),
     Widget,
     customMain,
     emptyWidget,
-    halt,
     padLeft,
     padTop,
     showFirstCursor,
@@ -21,58 +18,42 @@ import Brick
     vBox,
     withAttr,
     withBorderStyle,
-    (<=>)
+    (<=>),
   )
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Focus as BF
-import qualified Brick.Types as BT
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Edit
   ( editor,
-    getEditContents,
     renderEditor,
   )
-import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
-import Config (getConfig, getInitialTimer)
-import qualified Config as CFG (createConfigFileIfNotExists, updateConfig, writeConfig)
+import Config (getInitialTimer)
+import qualified Config as CFG (createConfigFileIfNotExists)
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Lens ((+=), (.=), (^.))
+import Control.Lens ((^.))
 import Control.Monad.State
-  ( MonadIO (liftIO),
-    MonadState (get),
-    forever,
+  ( forever,
     void,
-    when,
   )
 import qualified Data.Text as Txt
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
-import qualified Graphics.Vty.Input.Events as VE
 import Resources
   ( AppState (..),
     Name (..),
     Task,
     TaskAction (Edit, Insert),
-    TaskListOperation (..),
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
     focus,
-    longBreakInitialTimer,
-    longBreakTimer,
-    pomodoroInitialTimer,
-    pomodoroTimer,
-    shortBreakInitialTimer,
-    shortBreakTimer,
     taskEditor,
     taskList,
-    timerRunning
   )
 import qualified Resources as R
-import Task (getTasks, mkTask, taskExists, updateTaskList, writeTasks, createTasksFileIfNotExists)
-import Timer (tickTimer)
+import Task (createTasksFileIfNotExists, getTasks)
 import UI.Attributes
   ( attributes,
     selectedTaskAttr,
@@ -81,7 +62,7 @@ import UI.Attributes
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
   )
-import UI.Config (drawConfig)
+import UI.EventHandler (handleEvent)
 import UI.Timer (drawTimers)
 
 uiMain :: IO ()
@@ -112,7 +93,7 @@ createAppStateWithTasks
   shortBreakTimerDuration
   longBreakTimerDuration
   tasks =
-     let taskListWidget = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
+    let taskListWidget = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
      in AppState
           { _timerRunning = False,
             _pomodoroCounter = 0,
@@ -121,7 +102,7 @@ createAppStateWithTasks
             _shortBreakTimer = shortBreakTimerDuration,
             _longBreakTimer = longBreakTimerDuration,
             _taskEditor = editor (TaskEdit Insert) (Just 5) "",
-            _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskEdit Insert, TaskEdit Edit, Commands, Config],
+            _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskEdit Insert, TaskEdit Edit, Commands],
             _taskList = taskListWidget
           }
 
@@ -135,202 +116,12 @@ app =
       appAttrMap = const attributes
     }
 
-handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
-handleEvent ev =
-  case ev of
-    (AppEvent Tick) -> do
-      s <- get
-      tickTimer s
-    (VtyEvent vev@(VE.EvKey k ms)) -> do
-      s <- get
-      case BF.focusGetCurrent $ s ^. focus of
-        Just (TaskEdit Insert) ->
-          case (k, ms) of
-            (V.KIns, []) -> do
-              tasksFromFile <- liftIO getTasks
-              let insertedContent     = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-                  activeTasksFromFile = tasksFromFile
-              if not (taskExists activeTasksFromFile insertedContent) && not (Txt.null insertedContent)
-                then do
-                  task <- liftIO $ mkTask insertedContent
-                  updatedTasks <- liftIO $ writeTasks updateTaskList (AppendTask task)
-                  taskList .= BL.listReplace (DV.fromList updatedTasks) (BL.listSelected $ s ^. taskList) (s ^. taskList)
-                  taskEditor .= editor (TaskEdit Insert) (Just 5) ""
-                  focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-                else do
-                  taskEditor .= editor (TaskEdit Insert) (Just 5) ""
-                  focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-            (V.KEsc, []) -> do
-              focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-            _ -> do
-              BT.zoom taskEditor $ BE.handleEditorEvent ev
-        Just (TaskEdit Edit) ->
-          case (k, ms) of
-            (V.KIns, []) -> do
-              let selectedListTask = BL.listSelectedElement (s ^. taskList)
-              case selectedListTask of
-                Just (_, selectedTask) -> do
-                  tasksFromFile <- liftIO getTasks
-                  let editedContent       = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-                      activeTasksFromFile = tasksFromFile
-                  when (not (taskExists activeTasksFromFile editedContent) && not (Txt.null editedContent)) $ do
-                    updatedTasks <- liftIO $ writeTasks updateTaskList (EditTask selectedTask editedContent)
-                    taskList .= BL.listReplace (DV.fromList updatedTasks) (BL.listSelected $ s ^. taskList) (s ^. taskList)
-                    taskEditor .= editor (TaskEdit Edit) (Just 5) ""
-                    focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-                Nothing -> return ()
-            (V.KEsc, []) -> do
-              taskEditor .= editor (TaskEdit Insert) (Just 5) ""
-              focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-            _ -> do
-              BT.zoom taskEditor $ BE.handleEditorEvent ev
-        Just cfs@(TaskList timer) -> do
-          case (k, ms) of
-              (V.KChar 'e', []) -> do
-                let selectedListTask = BL.listSelectedElement (s ^. taskList)
-                case selectedListTask of
-                  Just (_, selectedTask) -> do
-                    let selectedTaskContent = selectedTask ^. R.taskContent
-                    taskEditor .= editor (TaskEdit Edit) (Just 5) selectedTaskContent
-                    focus .= BF.focusSetCurrent (TaskEdit Edit) (s ^. focus)
-                  Nothing -> return ()
-              (V.KChar 'c', [V.MCtrl]) -> do
-                let selectedListTask = BL.listSelectedElement (s ^. taskList)
-                case selectedListTask of
-                  Just (_, selectedTask) -> do
-                    modifiedTaskList <- liftIO $ writeTasks updateTaskList (ChangeTaskCompletion selectedTask)
-                    taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
-                  Nothing -> return ()
-              (V.KDel, []) -> do
-                let selectedListTask = BL.listSelectedElement (s ^. taskList)
-                case selectedListTask of
-                  Just (selectedIndex, selectedTask) -> do
-                    modifiedTaskList <- liftIO $ writeTasks updateTaskList (DeleteTask selectedTask) 
-                    if selectedIndex - 1 == length modifiedTaskList
-                      then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
-                      else
-                        if selectedIndex == 0
-                          then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just 0) (s ^. taskList)
-                          else taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just $ length modifiedTaskList - 1) (s ^. taskList)
-                  Nothing -> return ()
-              (V.KChar 't', []) -> do
-                focus .= BF.focusSetCurrent (TaskEdit Insert) (s ^. focus)
-              (V.KChar 'q', []) -> do
-                halt
-              (V.KChar 'c', []) -> do
-                focus .= BF.focusSetCurrent Commands (s ^. focus)
-              (V.KChar 's', []) -> do
-                timerRunning .= not (s ^. timerRunning)
-              (V.KChar 'r', []) -> do
-                initialTimer <- liftIO $ getInitialTimer timer
-                case timer of
-                  Pomodoro -> do
-                    pomodoroTimer .= initialTimer
-                  ShortBreak -> do
-                    shortBreakTimer .= initialTimer
-                  LongBreak -> do
-                    longBreakTimer .= initialTimer
-              (V.KChar 'i', []) -> do
-                case timer of
-                  Pomodoro -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 60)) config
-                    pomodoroTimer += 60
-                  ShortBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 60)) config
-                    shortBreakTimer += 60
-                  LongBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (config ^. longBreakInitialTimer + 60)) config
-                    longBreakTimer += 60
-              (V.KChar 'd', []) -> do
-                case cfs of
-                  TaskList Pomodoro -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (max ((config ^. pomodoroInitialTimer) - 60) 1)) config
-                    pomodoroTimer .= max ((s ^. pomodoroTimer) - 60) 1
-                  TaskList ShortBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (max ((config ^. shortBreakInitialTimer) - 60) 1)) config
-                    shortBreakTimer .= max ((s ^. shortBreakTimer) - 60) 1
-                  TaskList LongBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (max ((config ^. longBreakInitialTimer) - 60) 1)) config
-                    longBreakTimer .= max ((s ^. longBreakTimer) - 60) 1
-              (V.KChar 'I', []) -> do
-                case cfs of
-                  TaskList Pomodoro -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (config ^. pomodoroInitialTimer + 10)) config
-                    pomodoroTimer += 10
-                  TaskList ShortBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (config ^. shortBreakInitialTimer + 10)) config
-                    shortBreakTimer += 10
-                  TaskList LongBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (config ^. longBreakInitialTimer + 10)) config
-                    longBreakTimer += 10
-              (V.KChar 'D', []) -> do
-                case cfs of
-                  TaskList Pomodoro -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.Pomodoro (max ((config ^. pomodoroInitialTimer) - 10) 1)) config
-                    pomodoroTimer .= max ((s ^. pomodoroTimer) - 10) 1
-                  TaskList ShortBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.ShortBreak (max ((config ^. shortBreakInitialTimer) - 10) 1)) config
-                    shortBreakTimer .= max ((s ^. shortBreakTimer) - 10) 1
-                  TaskList LongBreak -> do
-                    _ <- liftIO $ forkIO $ do
-                      config <- getConfig
-                      CFG.writeConfig $
-                        CFG.updateConfig (R.UpdateInitialTimer R.LongBreak (max ((config ^. longBreakInitialTimer) - 10) 1)) config
-                    longBreakTimer .= max ((s ^. shortBreakTimer) - 10) 1
-              (V.KBackTab, []) -> do
-                timerRunning .= False
-                case cfs of
-                  TaskList Pomodoro -> focus .= BF.focusSetCurrent (TaskList ShortBreak) (s ^. focus)
-                  TaskList ShortBreak -> focus .= BF.focusSetCurrent (TaskList LongBreak) (s ^. focus)
-                  TaskList LongBreak -> focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-              (V.KChar 'p', []) -> do
-                focus .= BF.focusSetCurrent Config (s ^. focus)
-              _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
-        Just Commands ->
-          focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
-        _ -> return ()
-    _ -> return ()
-
 drawUI :: AppState -> [Widget Name]
 drawUI s =
   case BF.focusGetCurrent (s ^. focus) of
-    fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) fcs <=> drawTaskEditor s <=> drawCommands fcs]
+    fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
-    Just Config -> [drawConfig]
-    fcs -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) fcs <=> drawCommandsTip]
+    _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawCommandsTip]
 
 drawCommandsTip :: Widget Name
 drawCommandsTip = C.hCenter $ str "press c to see the commands"
@@ -344,7 +135,7 @@ drawCommandsScreen =
       \s           -> Start/Stop timer\n \
       \r           -> Reset timer\n \
       \i/d         -> Increase/Decrease timer by 1min\n \
-      \I/D         -> Increased/Decrease timer by 10sec\n \
+      \I/D         -> Increase/Decrease timer by 10sec\n \
       \t           -> Add a task\n \
       \e           -> Edit a task\n \
       \Del         -> Delete a task\n \
@@ -367,22 +158,19 @@ drawTaskEditor s =
 drawTaskEditorContent :: [Txt.Text] -> Widget Name
 drawTaskEditorContent t = txt (Txt.unlines t)
 
-drawTaskList :: BL.List Name Task -> Maybe Name -> Widget Name
-drawTaskList tasks currentFocus = do
-    case currentFocus of
-      Just (TaskList _) -> do
-        B.borderWithLabel (str "Tasks") $
-          BL.renderList drawTaskListItem True tasks
-      _ -> B.borderWithLabel (str "Tasks") $ BL.renderList drawTaskListItem False tasks
+drawTaskList :: BL.List Name Task -> Widget Name
+drawTaskList tasks = do
+  B.borderWithLabel (str "Tasks") $
+    BL.renderList drawTaskListItem True tasks
 
 drawTaskListItem :: Bool -> Task -> Widget Name
 drawTaskListItem sel task
   | sel =
       withAttr selectedTaskAttr $
         padLeft (Pad 1) $
-          taskListItem task sel 
+          taskListItem task sel
   | otherwise =
-      taskListItem task sel 
+      taskListItem task sel
 
 taskListItem :: Task -> Bool -> Widget Name
 taskListItem task sel =

@@ -23,14 +23,14 @@ executable homodoro
   main-is: Main.hs
   other-modules:
       UI.UI
-      Task
       UI.Attributes
+      UI.Timer
+      UI.EventHandler
+      Task
       Notify
       Resources
       Config
-      UI.Config
       Timer
-      UI.Timer
   hs-source-dirs:
       app
      ,src

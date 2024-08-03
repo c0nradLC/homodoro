@@ -53,5 +53,4 @@ executable homodoro
     , vector <1
     , vty <6.0
     , libnotify <2
-    , uuid <2
   default-language: Haskell2010

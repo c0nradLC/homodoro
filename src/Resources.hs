@@ -62,6 +62,7 @@ data Task = Task
   { _taskContent :: T.Text,
     _taskCompleted :: Bool
   }
+
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
@@ -84,6 +85,7 @@ data ConfigFile = ConfigFile
     _longBreakInitialTimer :: Int,
     _tasksFilePath :: FilePath
   }
+
 deriveJSON defaultOptions ''ConfigFile
 makeLenses ''ConfigFile
 
@@ -103,4 +105,5 @@ data AppState = AppState
     _taskList :: BL.List Name Task,
     _focus :: BF.FocusRing Name
   }
+
 makeLenses ''AppState

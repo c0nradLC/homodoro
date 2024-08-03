@@ -46,9 +46,9 @@ updateConfig :: ConfigFileUpdate
 updateConfig (UpdateInitialTimer timer time) = do
   cfg <- getConfig
   case timer of
-    R.Pomodoro -> writeConfig cfg {_pomodoroInitialTimer = max (_pomodoroInitialTimer cfg + time) 0}
-    R.ShortBreak -> writeConfig cfg {_shortBreakInitialTimer = max (_shortBreakInitialTimer cfg + time) 0}
-    R.LongBreak -> writeConfig cfg {_longBreakInitialTimer = max (_longBreakInitialTimer cfg + time) 0}
+    R.Pomodoro -> writeConfig cfg {_pomodoroInitialTimer = max (cfg ^. pomodoroInitialTimer + time) 0}
+    R.ShortBreak -> writeConfig cfg {_shortBreakInitialTimer = max (cfg ^. shortBreakInitialTimer + time) 0}
+    R.LongBreak -> writeConfig cfg {_longBreakInitialTimer = max (cfg ^. longBreakInitialTimer + time) 0}
 
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do

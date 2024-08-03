@@ -31,8 +31,7 @@ You can also build homodoro with `nix-build` or `cabal build` or run a developme
 ## Usage
 Just run `homodoro` and you should see the timers and the task list.
 
-The Pomodoro cycle consists of one Pomodoro round and one Short break, once the 4th Short break ends, instead of changing the focus back to the Pomodoro Round timer, it will change to the Long break timer, once the Long break is finished the Pomodoro cycles counter reset.
-> You may choose to use homodoro this way or the way you want, but currently the Pomodoro cycles counter should be working as described above.
+Every time the Pomodoro timer reaches 0, the `Pomodoros` counter increases by 1, every 4th `Pomodoro` round ends, instead of switching the focus to `Short Break`, the focus will be switched to `Long Break`, everytime a `Long Break` is finished, the counter that switches to `Long Break` on the 4th `Pomodoro` resets and the cycle starts again.
 
 #### Commands
 You can press `c` when not editing or creating a task to see the commands.
@@ -43,7 +42,7 @@ You can press `c` when not editing or creating a task to see the commands.
 - `r` Reset timer
 - `i/d` Increase/Decrease timer by 1min
 - `I/D` Increase/Decrease timer by 10sec
-- `Insert` Add a task
+- `t` Add a task
 - `e` Edit a task
 - `Del` Delete a task
 - `Ctrl + C` Change a task's status

@@ -23,14 +23,17 @@ executable homodoro
   main-is: Main.hs
   other-modules:
       UI.UI
-      Task.File
-      Task.Task
       UI.Attributes
+      UI.Timer
+      UI.EventHandler
+      Task
       Notify
       Resources
+      Config
+      Timer
   hs-source-dirs:
       app
-     ,src 
+     ,src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson <3

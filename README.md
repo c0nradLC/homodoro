@@ -51,7 +51,7 @@ Other than the commands that are shown at the bottom of the screen, you can chec
 
 #### Tasks file
 The tasks file is saved at the path set to the `XDG_DATA_HOME` environment variable.
-> According to it's [specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html), if that variable is not set or empty, it defaults to $HOME/.local/share on non-Windows systems.
+> According to its [specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html), if that variable is not set or empty, it defaults to $HOME/.local/share on non-Windows systems.
 
 #### Timers and their alerts
 When a timer reaches zero an alarm sound should ring and a notification popup should appear.

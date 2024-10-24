@@ -8,6 +8,8 @@ module Resources
     AppState (..),
     Tick (..),
     ConfigFile (..),
+    ConfigSetting (..),
+    ConfigSettingValue (..),
     ConfigFileUpdate,
     ConfigFileOperation (..),
     Task (..),
@@ -19,15 +21,24 @@ module Resources
     pomodoroTimer,
     shortBreakTimer,
     longBreakTimer,
-    shortBreakInitialTimer,
-    longBreakInitialTimer,
-    pomodoroInitialTimer,
     taskEditor,
     taskList,
+    configList,
     focus,
-    tasksFilePath,
     taskContent,
     taskCompleted,
+    configLabel,
+    configValue,
+    pomodoroInitialTimer,
+    shortBreakInitialTimer,
+    longBreakInitialTimer,
+    tasksFilePath,
+    startStopSound,
+    extractFilePathValue,
+    extractInitialTimerValue,
+    extractStartStopSoundValue,
+    configSettingsValueToText,
+    getConfigFileSettings
   )
 where
 
@@ -37,7 +48,7 @@ import qualified Brick.Widgets.List as BL
 import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
-import qualified Data.Text as Txt
+import qualified Control.Applicative as FP
 
 data Timer
   = Pomodoro
@@ -54,6 +65,7 @@ data Name
   = TaskEdit TaskAction
   | TaskList Timer
   | Commands
+  | Config
   deriving (Show, Eq, Ord)
 
 data Tick = Tick
@@ -62,7 +74,6 @@ data Task = Task
   { _taskContent :: T.Text,
     _taskCompleted :: Bool
   }
-
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
@@ -79,20 +90,62 @@ data TaskListOperation
 
 type TaskListUpdate = TaskListOperation -> IO [Task]
 
-data ConfigFile = ConfigFile
-  { _pomodoroInitialTimer :: Int,
-    _shortBreakInitialTimer :: Int,
-    _longBreakInitialTimer :: Int,
-    _tasksFilePath :: FilePath
-  }
+data ConfigSettingValue 
+  = ConfigInitialTimer Int
+  | ConfigStartStopSound Bool
+  | ConfigTasksFilePath FilePath
+  deriving (Show, Eq)
+makeLenses ''ConfigSettingValue
+deriveJSON defaultOptions ''ConfigSettingValue
 
-deriveJSON defaultOptions ''ConfigFile
+configSettingsValueToText :: ConfigSettingValue -> T.Text
+configSettingsValueToText (ConfigInitialTimer i) = T.pack $ show i
+configSettingsValueToText (ConfigStartStopSound b) = T.pack $ show b
+configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
+
+data ConfigSetting = ConfigSetting
+  { _configLabel :: T.Text
+  , _configValue :: ConfigSettingValue
+  } deriving (Show, Eq)
+makeLenses ''ConfigSetting
+deriveJSON defaultOptions ''ConfigSetting
+
+data ConfigFile = ConfigFile
+  { _pomodoroInitialTimer   :: ConfigSetting
+  , _shortBreakInitialTimer :: ConfigSetting
+  , _longBreakInitialTimer  :: ConfigSetting
+  , _tasksFilePath          :: ConfigSetting
+  , _startStopSound         :: ConfigSetting
+  } deriving (Show, Eq)
 makeLenses ''ConfigFile
+deriveJSON defaultOptions ''ConfigFile
+
+getConfigFileSettings :: ConfigFile -> [ConfigSetting]
+getConfigFileSettings configFile =
+  [ configFile ^. pomodoroInitialTimer
+  , configFile ^. shortBreakInitialTimer
+  , configFile ^. longBreakInitialTimer
+  , configFile ^. tasksFilePath
+  , configFile ^. startStopSound
+  ]
+
+extractInitialTimerValue :: ConfigSetting -> Int
+extractInitialTimerValue (ConfigSetting _ (ConfigInitialTimer initialTimer)) = initialTimer
+extractInitialTimerValue _ = 0
+
+extractFilePathValue :: ConfigSetting -> FilePath
+extractFilePathValue (ConfigSetting _ (ConfigTasksFilePath path)) = path
+extractFilePathValue _ = FP.empty
+
+extractStartStopSoundValue :: ConfigSetting -> Bool
+extractStartStopSoundValue (ConfigSetting _ (ConfigStartStopSound value)) = value
+extractStartStopSoundValue _ = False
 
 data ConfigFileOperation
-  = UpdateInitialTimer Timer Int
+  = AddInitialTimer Timer Int
+  | ToggleStartStopSound
 
-type ConfigFileUpdate = ConfigFileOperation -> IO ()
+type ConfigFileUpdate = ConfigFileOperation -> IO [ConfigSetting]
 
 data AppState = AppState
   { _timerRunning :: Bool,
@@ -101,9 +154,9 @@ data AppState = AppState
     _pomodoroTimer :: Int,
     _shortBreakTimer :: Int,
     _longBreakTimer :: Int,
-    _taskEditor :: Editor Txt.Text Name,
+    _taskEditor :: Editor T.Text Name,
     _taskList :: BL.List Name Task,
-    _focus :: BF.FocusRing Name
+    _focus :: BF.FocusRing Name,
+    _configList :: BL.List Name ConfigSetting
   }
-
 makeLenses ''AppState

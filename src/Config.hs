@@ -5,7 +5,7 @@ module Config
     getTasksFilePath,
     getInitialTimer,
     updateConfig,
-    getConfig,
+    getConfig
   )
 where
 
@@ -13,20 +13,21 @@ import Control.Lens.Getter ((^.))
 import Control.Monad (unless)
 import Data.Aeson hiding ((.=))
 import qualified Data.ByteString.Lazy as BSL
-import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigFileUpdate, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, tasksFilePath)
-import qualified Resources as R
+import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigFileUpdate, ConfigSetting (..), ConfigSettingValue(..), Timer(..), tasksFilePath, pomodoroInitialTimer, shortBreakInitialTimer, longBreakInitialTimer, startStopSound, extractInitialTimerValue, extractFilePathValue, configValue, getConfigFileSettings)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
+import Control.Lens ((&), (%~))
 
 defaultConfig :: IO ConfigFile
 defaultConfig = do
   xdgDataPath <- D.getXdgDirectory D.XdgData ""
   return
     ConfigFile
-      { _pomodoroInitialTimer = 1500,
-        _shortBreakInitialTimer = 300,
-        _longBreakInitialTimer = 900,
-        _tasksFilePath = xdgDataPath FP.</> "homodoro" FP.</> "tasks"
+      { _pomodoroInitialTimer = ConfigSetting { _configLabel = "Pomodoro round initial timer", _configValue = ConfigInitialTimer 1500 },
+        _shortBreakInitialTimer = ConfigSetting { _configLabel = "Short break initial timer", _configValue = ConfigInitialTimer 300 },
+        _longBreakInitialTimer = ConfigSetting { _configLabel = "Long break initial timer", _configValue = ConfigInitialTimer 900 },
+        _tasksFilePath = ConfigSetting { _configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks" },
+        _startStopSound = ConfigSetting { _configLabel = "Start/Stop sound", _configValue = ConfigStartStopSound False }
       }
 
 createConfigFileIfNotExists :: IO ()
@@ -43,12 +44,31 @@ getConfigFilePath = do
   pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
 
 updateConfig :: ConfigFileUpdate
-updateConfig (UpdateInitialTimer timer time) = do
-  cfg <- getConfig
+updateConfig (AddInitialTimer timer time) = do
+  configFile <- getConfig
   case timer of
-    R.Pomodoro -> writeConfig cfg {_pomodoroInitialTimer = max (cfg ^. pomodoroInitialTimer + time) 0}
-    R.ShortBreak -> writeConfig cfg {_shortBreakInitialTimer = max (cfg ^. shortBreakInitialTimer + time) 0}
-    R.LongBreak -> writeConfig cfg {_longBreakInitialTimer = max (cfg ^. longBreakInitialTimer + time) 0}
+    Pomodoro -> do
+      let updatedConfigFile = configFile & pomodoroInitialTimer . configValue %~ addInitialTimer
+      writeConfig updatedConfigFile
+      return $ getConfigFileSettings updatedConfigFile
+    ShortBreak -> do
+      let updatedConfigFile = configFile & shortBreakInitialTimer . configValue %~ addInitialTimer
+      writeConfig updatedConfigFile
+      return $ getConfigFileSettings updatedConfigFile
+    LongBreak -> do
+      let updatedConfigFile = configFile & longBreakInitialTimer . configValue %~ addInitialTimer
+      writeConfig updatedConfigFile
+      return $ getConfigFileSettings updatedConfigFile
+  where
+        addInitialTimer (ConfigInitialTimer val) = ConfigInitialTimer (max (val + time) 0) 
+        addInitialTimer val = val
+updateConfig ToggleStartStopSound = do
+  configFile <- getConfig
+  let updatedConfigFile = configFile & startStopSound . configValue %~ toggleBool
+  writeConfig updatedConfigFile 
+  return $ getConfigFileSettings updatedConfigFile where
+    toggleBool (ConfigStartStopSound b) = ConfigStartStopSound (not b)
+    toggleBool val = val
 
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
@@ -63,13 +83,17 @@ getConfig = do
 
 getTasksFilePath :: IO FilePath
 getTasksFilePath = do
-  config <- getConfig
-  return $ config ^. tasksFilePath
+  configFile <- getConfig
+  let tasksFilePathSetting = configFile ^. tasksFilePath
+  return $ extractFilePathValue tasksFilePathSetting
 
-getInitialTimer :: R.Timer -> IO Int
+getInitialTimer :: Timer -> IO Int
 getInitialTimer timer = do
-  config <- getConfig
+  configFile <- getConfig
+  let pomodoroInitialTimerSetting   = configFile ^. pomodoroInitialTimer
+      shortBreakInitialTimerSetting = configFile ^. shortBreakInitialTimer
+      longBreakInitialTimerSetting  = configFile ^. longBreakInitialTimer
   case timer of
-    R.Pomodoro -> return $ config ^. pomodoroInitialTimer
-    R.ShortBreak -> return $ config ^. shortBreakInitialTimer
-    R.LongBreak -> return $ config ^. longBreakInitialTimer
+    Pomodoro -> return $ extractInitialTimerValue pomodoroInitialTimerSetting
+    ShortBreak -> return $ extractInitialTimerValue shortBreakInitialTimerSetting
+    LongBreak -> return $ extractInitialTimerValue longBreakInitialTimerSetting

@@ -26,6 +26,7 @@ executable homodoro
       UI.Attributes
       UI.Timer
       UI.EventHandler
+      UI.Config
       Task
       Notify
       Resources

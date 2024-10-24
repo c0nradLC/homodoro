@@ -31,7 +31,7 @@ import Brick.Widgets.Edit
   )
 import qualified Brick.Widgets.List as BL
 import Config (getInitialTimer)
-import qualified Config as CFG (createConfigFileIfNotExists)
+import qualified Config as CFG (createConfigFileIfNotExists, getConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State
@@ -50,7 +50,7 @@ import Resources
     Timer (LongBreak, Pomodoro, ShortBreak),
     focus,
     taskEditor,
-    taskList,
+    taskList, configList, getConfigFileSettings,
   )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, getTasks)
@@ -64,6 +64,7 @@ import UI.Attributes
   )
 import UI.EventHandler (handleEvent)
 import UI.Timer (drawTimers)
+import UI.Config (drawConfigList)
 
 uiMain :: IO ()
 uiMain = do
@@ -81,30 +82,24 @@ createAppState :: IO AppState
 createAppState = do
   createTasksFileIfNotExists
   tasks <- getTasks
+  configFile   <- CFG.getConfig
   setPomodoroInitialTimer <- getInitialTimer R.Pomodoro
   setShortBreakInitialTimer <- getInitialTimer R.ShortBreak
   setLongBreakInitialTimer <- getInitialTimer R.LongBreak
-  let appState = createAppStateWithTasks setPomodoroInitialTimer setShortBreakInitialTimer setLongBreakInitialTimer tasks
-  return appState
-
-createAppStateWithTasks :: Int -> Int -> Int -> [Task] -> AppState
-createAppStateWithTasks
-  pomodoroTimerDuration
-  shortBreakTimerDuration
-  longBreakTimerDuration
-  tasks =
-    let taskListWidget = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
-     in AppState
-          { _timerRunning = False,
-            _pomodoroCounter = 0,
-            _pomodoroCyclesCounter = 0,
-            _pomodoroTimer = pomodoroTimerDuration,
-            _shortBreakTimer = shortBreakTimerDuration,
-            _longBreakTimer = longBreakTimerDuration,
-            _taskEditor = editor (TaskEdit Insert) (Just 5) "",
-            _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak, TaskEdit Insert, TaskEdit Edit, Commands],
-            _taskList = taskListWidget
-          }
+  return AppState
+    { _timerRunning = False,
+      _pomodoroCounter = 0,
+      _pomodoroCyclesCounter = 0,
+      _pomodoroTimer = setPomodoroInitialTimer,
+      _shortBreakTimer = setShortBreakInitialTimer,
+      _longBreakTimer = setLongBreakInitialTimer,
+      _taskEditor = editor (TaskEdit Insert) (Just 5) "",
+      _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak,
+                              TaskEdit Insert, TaskEdit Edit,
+                              Commands, Config],
+      _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1,
+      _configList = BL.list Config (DV.fromList $ getConfigFileSettings configFile) 1
+    }
 
 app :: App AppState Tick Name
 app =
@@ -121,6 +116,7 @@ drawUI s =
   case BF.focusGetCurrent (s ^. focus) of
     fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
+    Just Config -> [B.border $ C.center $ drawConfigList (s ^. configList)]
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawCommandsTip]
 
 drawCommandsTip :: Widget Name
@@ -139,7 +135,8 @@ drawCommandsScreen =
       \t           -> Add a task\n \
       \e           -> Edit a task\n \
       \Del         -> Delete a task\n \
-      \Ctrl + C    -> Change a task's status\n"
+      \Ctrl + C    -> Change a task's status\n \
+      \p           -> Configuration menu\n"
 
 drawCommands :: Maybe Name -> Widget Name
 drawCommands currentFocus = do

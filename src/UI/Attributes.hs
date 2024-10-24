@@ -8,6 +8,7 @@ module UI.Attributes
     taskCompletedWhiteBgLabelAttr,
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
+    selectedConfigAttr
   )
 where
 
@@ -26,7 +27,8 @@ attributes =
       (taskCompletedLabelAttr, V.defAttr `withForeColor` V.blue),
       (taskPendingLabelAttr, V.defAttr `withForeColor` V.red),
       (taskCompletedWhiteBgLabelAttr, V.blue `on` V.white),
-      (taskPendingWhiteBgLabelAttr, V.red `on` V.white)
+      (taskPendingWhiteBgLabelAttr, V.red `on` V.white),
+      (selectedConfigAttr, V.black `on` V.white)
     ]
 
 timerAttr :: AttrName
@@ -52,3 +54,6 @@ taskPendingLabelAttr = attrName "taskPendingLabelAttr"
 
 taskPendingWhiteBgLabelAttr :: AttrName
 taskPendingWhiteBgLabelAttr = attrName "taskPendingWhiteBgLabelAttr"
+
+selectedConfigAttr :: AttrName
+selectedConfigAttr = attrName "selectedConfigAttr"

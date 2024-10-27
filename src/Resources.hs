@@ -10,11 +10,11 @@ module Resources
     ConfigFile (..),
     ConfigSetting (..),
     ConfigSettingValue (..),
-    ConfigFileUpdate,
     ConfigFileOperation (..),
     Task (..),
     TaskListUpdate,
     TaskListOperation (..),
+    TimerDialogChoice(..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -34,11 +34,8 @@ module Resources
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
-    extractFilePathValue,
-    extractInitialTimerValue,
-    extractStartStopSoundValue,
     configSettingsValueToText,
-    getConfigFileSettings
+    initialTimerDialog
   )
 where
 
@@ -48,13 +45,18 @@ import qualified Brick.Widgets.List as BL
 import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
-import qualified Control.Applicative as FP
+import Brick.Widgets.Dialog (Dialog)
 
 data Timer
   = Pomodoro
   | ShortBreak
   | LongBreak
   deriving (Show, Eq, Ord)
+deriveJSON defaultOptions ''Timer
+
+data TimerDialogChoice
+  = Increase
+  | Decrease
 
 data TaskAction
   = Edit
@@ -66,6 +68,7 @@ data Name
   | TaskList Timer
   | Commands
   | Config
+  | InitialTimerDialog Timer
   deriving (Show, Eq, Ord)
 
 data Tick = Tick
@@ -91,7 +94,7 @@ data TaskListOperation
 type TaskListUpdate = TaskListOperation -> IO [Task]
 
 data ConfigSettingValue 
-  = ConfigInitialTimer Int
+  = ConfigInitialTimer Timer Int
   | ConfigStartStopSound Bool
   | ConfigTasksFilePath FilePath
   deriving (Show, Eq)
@@ -99,7 +102,7 @@ makeLenses ''ConfigSettingValue
 deriveJSON defaultOptions ''ConfigSettingValue
 
 configSettingsValueToText :: ConfigSettingValue -> T.Text
-configSettingsValueToText (ConfigInitialTimer i) = T.pack $ show i
+configSettingsValueToText (ConfigInitialTimer _ i) = T.pack $ show i
 configSettingsValueToText (ConfigStartStopSound b) = T.pack $ show b
 configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
 
@@ -120,32 +123,9 @@ data ConfigFile = ConfigFile
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
 
-getConfigFileSettings :: ConfigFile -> [ConfigSetting]
-getConfigFileSettings configFile =
-  [ configFile ^. pomodoroInitialTimer
-  , configFile ^. shortBreakInitialTimer
-  , configFile ^. longBreakInitialTimer
-  , configFile ^. tasksFilePath
-  , configFile ^. startStopSound
-  ]
-
-extractInitialTimerValue :: ConfigSetting -> Int
-extractInitialTimerValue (ConfigSetting _ (ConfigInitialTimer initialTimer)) = initialTimer
-extractInitialTimerValue _ = 0
-
-extractFilePathValue :: ConfigSetting -> FilePath
-extractFilePathValue (ConfigSetting _ (ConfigTasksFilePath path)) = path
-extractFilePathValue _ = FP.empty
-
-extractStartStopSoundValue :: ConfigSetting -> Bool
-extractStartStopSoundValue (ConfigSetting _ (ConfigStartStopSound value)) = value
-extractStartStopSoundValue _ = False
-
 data ConfigFileOperation
   = AddInitialTimer Timer Int
   | ToggleStartStopSound
-
-type ConfigFileUpdate = ConfigFileOperation -> IO [ConfigSetting]
 
 data AppState = AppState
   { _timerRunning :: Bool,
@@ -157,6 +137,7 @@ data AppState = AppState
     _taskEditor :: Editor T.Text Name,
     _taskList :: BL.List Name Task,
     _focus :: BF.FocusRing Name,
-    _configList :: BL.List Name ConfigSetting
+    _configList :: BL.List Name ConfigSetting,
+    _initialTimerDialog :: Maybe (Dialog TimerDialogChoice)
   }
 makeLenses ''AppState

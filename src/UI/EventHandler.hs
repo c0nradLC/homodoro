@@ -9,15 +9,13 @@ import Brick.Widgets.Edit (editor, getEditContents)
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
 import Config (getInitialTimer, updateConfig)
-import Control.Concurrent (forkIO)
 import Control.Lens ((+=), (.=), (^.))
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
 import qualified Data.Text as Txt
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty as VE
-
-import Resources (AppState, ConfigFileOperation (..), Name (Commands, TaskEdit, TaskList, Config), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, configList, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), configValue)
+import Resources (AppState, ConfigFileOperation (..), Name (Commands, TaskEdit, TaskList, Config, InitialTimerDialog), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, configList, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), configValue, initialTimerDialog)
 import Task (mkTask, taskExists, updateTaskList)
 import Timer (tickTimer)
 
@@ -28,7 +26,7 @@ handleEvent ev = do
   case ev of
     (AppEvent Tick) -> do
       when (s ^. timerRunning) $ do
-        tickTimer currentFocus s 
+        tickTimer currentFocus s
     (VtyEvent vev@(VE.EvKey k ms)) -> do
       let selectedListTask  = BL.listSelectedElement (s ^. taskList)
           taskEditorContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
@@ -92,9 +90,8 @@ handleEvent ev = do
                     LongBreak -> do
                       longBreakTimer .= initialTimer
                 (V.KChar 'i', []) -> do
-                  _ <- liftIO $ forkIO $ do
-                    _ <- updateConfig (AddInitialTimer timer 60)
-                    return ()
+                  updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer 60)
+                  configList .= BL.listReplace (DV.fromList updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
                   case timer of
                     Pomodoro -> do
                       pomodoroTimer += 60
@@ -103,9 +100,8 @@ handleEvent ev = do
                     LongBreak -> do
                       longBreakTimer += 60
                 (V.KChar 'd', []) -> do
-                  _ <- liftIO $ forkIO $ do
-                    _ <- updateConfig (AddInitialTimer timer (-60))
-                    return ()
+                  updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer (-60))
+                  configList .= BL.listReplace (DV.fromList updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
                   case timer of
                     Pomodoro -> do
                       pomodoroTimer .= max ((s ^. pomodoroTimer) - 60) 0
@@ -114,9 +110,8 @@ handleEvent ev = do
                     LongBreak -> do
                       longBreakTimer .= max ((s ^. longBreakTimer) - 60) 0
                 (V.KChar 'I', []) -> do
-                  _ <- liftIO $ forkIO $ do
-                    _ <- updateConfig (AddInitialTimer timer 10)
-                    return ()
+                  updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer 10)
+                  configList .= BL.listReplace (DV.fromList updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
                   case timer of
                     Pomodoro -> do
                       pomodoroTimer += 10
@@ -125,9 +120,8 @@ handleEvent ev = do
                     LongBreak -> do
                       longBreakTimer += 10
                 (V.KChar 'D', []) -> do
-                  _ <- liftIO $ forkIO $ do
-                    _ <- updateConfig (AddInitialTimer timer (-10))
-                    return ()
+                  updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer (-10))
+                  configList .= BL.listReplace (DV.fromList updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
                   case timer of
                     Pomodoro ->
                       pomodoroTimer .= max ((s ^. pomodoroTimer) - 10) 0
@@ -141,6 +135,7 @@ handleEvent ev = do
                     Pomodoro -> changeFocus (TaskList ShortBreak) s
                     ShortBreak -> changeFocus (TaskList LongBreak) s
                     LongBreak -> changeFocus (TaskList Pomodoro) s
+                (V.KChar 'p', []) -> changeFocus Config s
                 _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
         Just Commands ->
           case (k, ms) of
@@ -148,20 +143,23 @@ handleEvent ev = do
             _ -> changeFocus (TaskList Pomodoro) s
         Just Config -> do
           case (k, ms) of
-            (V.KChar 'q', []) -> halt
+            (V.KChar 'q', []) ->
+              changeFocus (TaskList Pomodoro) s
             (V.KEsc, []) -> changeFocus (TaskList Pomodoro) s
             (V.KEnter, []) -> do
               let selectedConfigElement         = BL.listSelectedElement (s ^. configList)
-                  (_, selectedConfigSetting)  = case selectedConfigElement of
+                  (_, selectedConfigSetting)    = case selectedConfigElement of
                     Just (idx, configSetting) -> (idx, configSetting)
-                    _ -> (-1, ConfigSetting {_configLabel = "", _configValue = ConfigInitialTimer 0})
+                    _ -> (-1, ConfigSetting {_configLabel = "", _configValue = ConfigInitialTimer Pomodoro 0})
               case selectedConfigSetting ^. configValue of
                 ConfigStartStopSound _ -> do
                   updatedConfigSettings <- liftIO $ updateConfig ToggleStartStopSound
                   configList .= BL.listReplace (DV.fromList updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
-                  return ()
+                ConfigInitialTimer timer _ ->
+                  changeFocus (InitialTimerDialog timer) s
                 _ -> return()
             _ -> BT.zoom configList $ BL.handleListEventVi BL.handleListEvent vev
+        Just (InitialTimerDialog timer) -> return ()
         _ -> return ()
     _ -> return ()
 

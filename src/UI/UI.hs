@@ -30,7 +30,7 @@ import Brick.Widgets.Edit
     renderEditor,
   )
 import qualified Brick.Widgets.List as BL
-import Config (getInitialTimer)
+import Config (getInitialTimer, configFileSettings)
 import qualified Config as CFG (createConfigFileIfNotExists, getConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
@@ -50,7 +50,7 @@ import Resources
     Timer (LongBreak, Pomodoro, ShortBreak),
     focus,
     taskEditor,
-    taskList, configList, getConfigFileSettings,
+    taskList, configList,
   )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, getTasks)
@@ -64,7 +64,8 @@ import UI.Attributes
   )
 import UI.EventHandler (handleEvent)
 import UI.Timer (drawTimers)
-import UI.Config (drawConfigList)
+import UI.Config (drawConfigList, timerDialog)
+import Brick.Widgets.Dialog (renderDialog)
 
 uiMain :: IO ()
 uiMain = do
@@ -94,11 +95,14 @@ createAppState = do
       _shortBreakTimer = setShortBreakInitialTimer,
       _longBreakTimer = setLongBreakInitialTimer,
       _taskEditor = editor (TaskEdit Insert) (Just 5) "",
-      _focus = BF.focusRing [TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak,
+      _focus = BF.focusRing [ TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak,
                               TaskEdit Insert, TaskEdit Edit,
-                              Commands, Config],
+                              Commands, Config,
+                              InitialTimerDialog Pomodoro, InitialTimerDialog ShortBreak, InitialTimerDialog LongBreak
+                            ],
       _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1,
-      _configList = BL.list Config (DV.fromList $ getConfigFileSettings configFile) 1
+      _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1,
+      _initialTimerDialog = Nothing
     }
 
 app :: App AppState Tick Name
@@ -117,6 +121,7 @@ drawUI s =
     fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
     Just Config -> [B.border $ C.center $ drawConfigList (s ^. configList)]
+    Just (InitialTimerDialog timer) -> [B.border $ C.center $ renderDialog (timerDialog timer) emptyWidget]
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawCommandsTip]
 
 drawCommandsTip :: Widget Name

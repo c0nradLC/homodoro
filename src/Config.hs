@@ -9,7 +9,9 @@ module Config
     extractFilePathValue,
     extractInitialTimerValue,
     extractStartStopSoundValue,
-    configFileSettings
+    configFileSettings,
+    configSettingsValueToText,
+    initialTimerSetting
   )
 where
 
@@ -22,6 +24,9 @@ import qualified System.Directory as D
 import qualified System.FilePath as FP
 import Control.Lens ((&), (%~))
 import qualified Control.Applicative as FP
+import qualified Data.Text as T
+import Data.List (find)
+import UI.Timer (formatTimer)
 
 defaultConfig :: IO ConfigFile
 defaultConfig = do
@@ -48,22 +53,22 @@ getConfigFilePath = do
   xdgConfigPath <- D.getXdgDirectory D.XdgConfig ""
   pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
 
-updateConfig :: ConfigFileOperation -> IO [ConfigSetting]
+updateConfig :: ConfigFileOperation -> IO ConfigFile
 updateConfig (AddInitialTimer timer time) = do
   configFile <- getConfig
   case timer of
     Pomodoro -> do
       let updatedConfigFile = configFile & pomodoroInitialTimer . configValue %~ addInitialTimer
       writeConfig updatedConfigFile
-      return $ configFileSettings updatedConfigFile
+      return updatedConfigFile
     ShortBreak -> do
       let updatedConfigFile = configFile & shortBreakInitialTimer . configValue %~ addInitialTimer
       writeConfig updatedConfigFile
-      return $ configFileSettings updatedConfigFile
+      return updatedConfigFile
     LongBreak -> do
       let updatedConfigFile = configFile & longBreakInitialTimer . configValue %~ addInitialTimer
       writeConfig updatedConfigFile
-      return $ configFileSettings updatedConfigFile
+      return updatedConfigFile
     where
       addInitialTimer (ConfigInitialTimer _ val) = ConfigInitialTimer timer (max (val + time) 0) 
       addInitialTimer val = val
@@ -71,7 +76,7 @@ updateConfig ToggleStartStopSound = do
   configFile <- getConfig
   let updatedConfigFile = configFile & startStopSound . configValue %~ toggleBool
   writeConfig updatedConfigFile 
-  return $ configFileSettings updatedConfigFile
+  return updatedConfigFile
   where
     toggleBool (ConfigStartStopSound b) = ConfigStartStopSound (not b)
     toggleBool val = val
@@ -115,6 +120,19 @@ configFileSettings configFile =
   , configFile ^. tasksFilePath
   , configFile ^. startStopSound
   ]
+
+initialTimerSetting :: Timer -> [ConfigSetting] -> Maybe ConfigSetting
+initialTimerSetting timer =
+  find isInitialTimer 
+  where
+    isInitialTimer setting = case setting ^. configValue of
+      ConfigInitialTimer cfgTimer _ -> timer == cfgTimer
+      _                             -> False
+
+configSettingsValueToText :: ConfigSettingValue -> T.Text
+configSettingsValueToText (ConfigInitialTimer _ i) = T.pack $ formatTimer i
+configSettingsValueToText (ConfigStartStopSound b) = T.pack $ show b
+configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
 
 extractInitialTimerValue :: ConfigSetting -> (Timer, Int)
 extractInitialTimerValue (ConfigSetting _ (ConfigInitialTimer t initialTimer)) = (t, initialTimer)

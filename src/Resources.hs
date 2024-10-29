@@ -34,7 +34,6 @@ module Resources
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
-    configSettingsValueToText,
     initialTimerDialog
   )
 where
@@ -55,8 +54,8 @@ data Timer
 deriveJSON defaultOptions ''Timer
 
 data TimerDialogChoice
-  = Increase
-  | Decrease
+  = Ok
+  | ResetTimer
 
 data TaskAction
   = Edit
@@ -101,11 +100,6 @@ data ConfigSettingValue
 makeLenses ''ConfigSettingValue
 deriveJSON defaultOptions ''ConfigSettingValue
 
-configSettingsValueToText :: ConfigSettingValue -> T.Text
-configSettingsValueToText (ConfigInitialTimer _ i) = T.pack $ show i
-configSettingsValueToText (ConfigStartStopSound b) = T.pack $ show b
-configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
-
 data ConfigSetting = ConfigSetting
   { _configLabel :: T.Text
   , _configValue :: ConfigSettingValue
@@ -138,6 +132,7 @@ data AppState = AppState
     _taskList :: BL.List Name Task,
     _focus :: BF.FocusRing Name,
     _configList :: BL.List Name ConfigSetting,
-    _initialTimerDialog :: Maybe (Dialog TimerDialogChoice)
+    _initialTimerDialog :: Dialog TimerDialogChoice
   }
 makeLenses ''AppState
+

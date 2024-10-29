@@ -18,7 +18,7 @@ import Brick
     vBox,
     withAttr,
     withBorderStyle,
-    (<=>),
+    (<=>), padBottom, padLeftRight
   )
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Focus as BF
@@ -30,7 +30,7 @@ import Brick.Widgets.Edit
     renderEditor,
   )
 import qualified Brick.Widgets.List as BL
-import Config (getInitialTimer, configFileSettings)
+import Config (getInitialTimer, configFileSettings, extractInitialTimerValue, initialTimerSetting)
 import qualified Config as CFG (createConfigFileIfNotExists, getConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
@@ -50,7 +50,7 @@ import Resources
     Timer (LongBreak, Pomodoro, ShortBreak),
     focus,
     taskEditor,
-    taskList, configList,
+    taskList, configList, initialTimerDialog, pomodoroTimer, shortBreakTimer, longBreakTimer,
   )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, getTasks)
@@ -60,10 +60,10 @@ import UI.Attributes
     taskCompletedLabelAttr,
     taskCompletedWhiteBgLabelAttr,
     taskPendingLabelAttr,
-    taskPendingWhiteBgLabelAttr,
+    taskPendingWhiteBgLabelAttr, timerAttr,
   )
 import UI.EventHandler (handleEvent)
-import UI.Timer (drawTimers)
+import UI.Timer (drawTimers, formatTimer)
 import UI.Config (drawConfigList, timerDialog)
 import Brick.Widgets.Dialog (renderDialog)
 
@@ -102,7 +102,7 @@ createAppState = do
                             ],
       _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1,
       _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1,
-      _initialTimerDialog = Nothing
+      _initialTimerDialog = timerDialog Pomodoro
     }
 
 app :: App AppState Tick Name
@@ -121,7 +121,27 @@ drawUI s =
     fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
     Just Config -> [B.border $ C.center $ drawConfigList (s ^. configList)]
-    Just (InitialTimerDialog timer) -> [B.border $ C.center $ renderDialog (timerDialog timer) emptyWidget]
+    Just (InitialTimerDialog timer) -> do
+      let configListL                   = DV.toList $ BL.listElements (s ^. configList)
+          (_, currentInitialTimerValue) =
+            maybe
+              (Pomodoro, 0)
+              extractInitialTimerValue
+              (initialTimerSetting timer configListL)
+      [B.border $ C.hCenter $
+        drawConfigList (s ^. configList)
+        <=> renderDialog (s ^. initialTimerDialog)
+              (vBox
+              [ padTop (Pad 1) $ C.hCenter (txt "Initial timer") <=>
+                  C.hCenter (withAttr timerAttr (padLeftRight 1 $ str $ formatTimer currentInitialTimerValue))
+              , padTop (Pad 1) $ C.hCenter (txt "Active timer value") <=> C.hCenter (padBottom (Pad 1) $ case timer of
+                  Pomodoro   -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. pomodoroTimer
+                  ShortBreak -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. shortBreakTimer
+                  LongBreak  -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. longBreakTimer)
+              , C.hCenter $ txt "[Up arrow]   - Increase by 1min"
+              , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"
+                  ])
+            ]
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawCommandsTip]
 
 drawCommandsTip :: Widget Name
@@ -131,17 +151,15 @@ drawCommandsScreen :: Widget Name
 drawCommandsScreen =
   C.hCenter $
     str
-      " q           -> Quit application \n \
-      \Shift + Tab -> Go to next timer \n \
-      \s           -> Start/Stop timer\n \
-      \r           -> Reset timer\n \
-      \i/d         -> Increase/Decrease timer by 1min\n \
-      \I/D         -> Increase/Decrease timer by 10sec\n \
-      \t           -> Add a task\n \
-      \e           -> Edit a task\n \
-      \Del         -> Delete a task\n \
-      \Ctrl + C    -> Change a task's status\n \
-      \p           -> Configuration menu\n"
+      " [q]           - Quit application \n \
+      \[Shift + Tab] - Go to next timer \n \
+      \[s]           - Start/Stop timer\n \
+      \[r]           - Reset timer\n \
+      \[t]           - Add a task\n \
+      \[e]           - Edit a task\n \
+      \[Del]         - Delete a task\n \
+      \[Ctrl + C]    - Change a task's status\n \
+      \[p]           - Configuration menu\n"
 
 drawCommands :: Maybe Name -> Widget Name
 drawCommands currentFocus = do

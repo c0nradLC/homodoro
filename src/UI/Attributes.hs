@@ -15,6 +15,7 @@ where
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
+import Brick.Widgets.Dialog (buttonSelectedAttr, buttonAttr)
 
 attributes :: AttrMap
 attributes =
@@ -28,7 +29,9 @@ attributes =
       (taskPendingLabelAttr, V.defAttr `withForeColor` V.red),
       (taskCompletedWhiteBgLabelAttr, V.blue `on` V.white),
       (taskPendingWhiteBgLabelAttr, V.red `on` V.white),
-      (selectedConfigAttr, V.black `on` V.white)
+      (selectedConfigAttr, V.black `on` V.white),
+      (buttonSelectedAttr, V.black `on` V.white),
+      (buttonAttr, V.white `on` V.black)
     ]
 
 timerAttr :: AttrName

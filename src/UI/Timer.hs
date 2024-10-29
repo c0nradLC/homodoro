@@ -1,5 +1,6 @@
 module UI.Timer
-  ( drawTimers,
+  ( drawTimers
+  , formatTimer
   )
 where
 
@@ -39,7 +40,7 @@ label s = B.border $ padLeftRight 1 $ str s
 drawTimer :: Int -> Widget Name
 drawTimer timerDuration =
   C.hCenter $
-    padTopBottom 2 $
+    padTopBottom 1 $
       withAttr timerAttr $
         padTopBottom 1 $
           padLeftRight 1 $

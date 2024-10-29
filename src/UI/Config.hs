@@ -1,12 +1,15 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module UI.Config (drawConfigList, timerDialog)
 where
-import Resources (Name, ConfigSetting, configLabel, configValue, configSettingsValueToText, Timer (..), TimerDialogChoice (Increase, Decrease))
+import Resources (Name, ConfigSetting, configLabel, configValue, Timer (..), TimerDialogChoice (..))
 import Brick (Widget, withAttr, txt, hBox, vLimit, padLeftRight)
 import qualified Brick.Widgets.List as BL
 import UI.Attributes (selectedConfigAttr)
 import Control.Lens ((^.))
 import Brick.Widgets.Core (fill)
 import Brick.Widgets.Dialog (dialog, Dialog)
+import Config (configSettingsValueToText)
 
 drawConfigList :: BL.List Name ConfigSetting -> Widget Name
 drawConfigList cfg = do
@@ -19,16 +22,16 @@ drawConfig selected cfg = do
     else
         configWidget
     where configWidget = vLimit 1 $ padLeftRight 1 $ hBox
-            [ txt (cfg ^. configLabel)
-            , fill ' '
-            , txt $ configSettingsValueToText $ cfg ^. configValue ]
+                [ txt (cfg ^. configLabel)
+                , fill ' '
+                , txt $ configSettingsValueToText $ cfg ^. configValue ]
 
 timerDialog :: Timer -> Dialog TimerDialogChoice
 timerDialog timer = 
-    dialog title (Just (0, options)) 70
+    dialog title (Just (0, options)) 50
         where
-            options = [("Increase by 1min", Increase), ("Decrease by 1min", Decrease)]
+            options = [("Ok", Ok), ("Reset active timer", ResetTimer)]
             title   = case timer of
-                Pomodoro -> Just "Pomodoro initial timer"
-                ShortBreak -> Just "Short break initial timer"
-                LongBreak -> Just "Long break initial timer"
+                Pomodoro -> Just "Set pomodoro initial timer"
+                ShortBreak -> Just "Set short break initial timer"
+                LongBreak -> Just "Set long break initial timer"

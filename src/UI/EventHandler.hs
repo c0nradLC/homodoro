@@ -8,18 +8,19 @@ import qualified Brick.Focus as BF
 import Brick.Widgets.Edit (editor, getEditContents)
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
-import Config (getInitialTimer, updateConfig, configFileSettings)
+import Config (readInitialTimer, updateConfig, configFileSettings, readStartStopSound)
 import Control.Lens ((.=), (^.))
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
 import qualified Data.Text as Txt
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty as VE
-import Resources (AppState, ConfigFileOperation (..), Name (Commands, TaskEdit, TaskList, Config, InitialTimerDialog), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, configList, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), configValue, initialTimerDialog, TimerDialogChoice (..))
+import Resources (AppState, ConfigFileOperation (..), Name (Commands, TaskEdit, TaskList, Config, InitialTimerDialog), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, configList, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), configValue, initialTimerDialog, TimerDialogChoice (..), Audio (..))
 import Task (mkTask, taskExists, updateTaskList)
 import Timer (tickTimer)
 import Brick.Widgets.Dialog (handleDialogEvent, dialogSelection)
 import UI.Config (timerDialog)
+import qualified Notify as NT
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -81,9 +82,15 @@ handleEvent ev = do
                 (V.KChar 'c', []) -> do
                   changeFocus Commands s
                 (V.KChar 's', []) -> do
+                  startStopSoundActive <- liftIO readStartStopSound
+                  when startStopSoundActive $
+                    if s ^. timerRunning then do 
+                      liftIO $ NT.playAudio Stop
+                    else
+                      liftIO $ NT.playAudio Start
                   timerRunning .= not (s ^. timerRunning)
                 (V.KChar 'r', []) -> do
-                  initialTimer <- liftIO $ getInitialTimer timer
+                  initialTimer <- liftIO $ readInitialTimer timer
                   case timer of
                     Pomodoro -> do
                       pomodoroTimer .= initialTimer
@@ -117,12 +124,12 @@ handleEvent ev = do
                 ConfigStartStopSound _ -> do
                   updatedConfigSettings <- liftIO $ updateConfig ToggleStartStopSound
                   configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
-                ConfigInitialTimer timer _ ->
+                ConfigInitialTimer timer _ -> do
+                  initialTimerDialog .= timerDialog (Just 0) timer
                   changeFocus (InitialTimerDialog timer) s
                 _ -> return()
             _ -> BT.zoom configList $ BL.handleListEventVi BL.handleListEvent vev
         Just (InitialTimerDialog timer) -> do
-          initialTimerDialog .= timerDialog timer
           case (k, ms) of
             (V.KUp, []) -> do
               updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer 60)
@@ -132,6 +139,12 @@ handleEvent ev = do
               configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
             (V.KEnter, []) -> case dialogSelection (s ^. initialTimerDialog) of
               Just Ok -> changeFocus Config s
+              Just ResetTimer -> do
+                cfgInitialTimer <- liftIO $ readInitialTimer timer
+                case timer of
+                  Pomodoro -> pomodoroTimer .= cfgInitialTimer
+                  ShortBreak -> shortBreakTimer .= cfgInitialTimer
+                  LongBreak -> longBreakTimer .= cfgInitialTimer
               _ -> return ()
             _ -> BT.zoom initialTimerDialog $ handleDialogEvent vev
         _ -> return ()

@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Notify
-  ( playAlertSound,
+  ( playAudio,
     alertRoundEnded,
   )
 where
@@ -16,7 +16,7 @@ import Data.FileEmbed (embedFile)
 import qualified Libnotify.C.Notify as LN
 import Libnotify.C.NotifyNotification (Timeout (..), notify_notification_set_timeout, notify_notification_show)
 import qualified Libnotify.C.NotifyNotification as LN
-import Resources (AppState, Name)
+import Resources (AppState, Name, Audio (..))
 import qualified SDL
 import qualified SDL.Mixer as Mix
 import System.IO (hClose)
@@ -32,16 +32,26 @@ alertRoundEnded msg = liftIO $ do
     _ <- notify_notification_show notification
     return ()
 
-audioFile :: SB.ByteString
-audioFile = $(embedFile "resources/ringtone.mp3")
+timerEndedAudio :: SB.ByteString
+timerEndedAudio = $(embedFile "resources/timerEnded.mp3")
 
-playAlertSound :: IO ()
-playAlertSound = do
+startAudio :: SB.ByteString
+startAudio = $(embedFile "resources/start_audio.mp3")
+
+stopAudio :: SB.ByteString
+stopAudio = $(embedFile "resources/stop_audio.mp3")
+
+playAudio :: Audio -> IO ()
+playAudio audio = do
   SDL.initialize [SDL.InitAudio]
   Mix.initialize [Mix.InitMP3]
 
   withSystemTempFile "tempRingtone" $ \tempPath tempHandle -> do
-    SB.hPut tempHandle audioFile
+    SB.hPut tempHandle $ case audio of
+      TimerEnded -> timerEndedAudio
+      Start -> startAudio
+      Stop -> stopAudio
+      _ -> ""
     let audioFileTest = tempPath
     hClose tempHandle
 

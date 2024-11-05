@@ -18,15 +18,15 @@ drawTimers s =
   case BF.focusGetCurrent (s ^. focus) of
     Just (TaskList timer) -> case timer of
       Pomodoro ->
-        (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
+        B.border $ (C.hCenter (withAttr selectedTimerAttr (label "Pomodoro") <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=>) $
           drawTimer (s ^. pomodoroTimer)
             <=> drawPomodorosCounter s
       ShortBreak ->
-        (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (withAttr selectedTimerAttr $ label "Short break") <+> label "Long break") <=>) $
+        B.border $ (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (withAttr selectedTimerAttr $ label "Short break") <+> label "Long break") <=>) $
           drawTimer (s ^. shortBreakTimer)
             <=> drawPomodorosCounter s
       LongBreak ->
-        (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> withAttr selectedTimerAttr (label "Long break")) <=>) $
+        B.border $ (C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> withAttr selectedTimerAttr (label "Long break")) <=>) $
           drawTimer (s ^. longBreakTimer)
             <=> drawPomodorosCounter s
     _ ->
@@ -41,7 +41,6 @@ drawTimer :: Int -> Widget Name
 drawTimer timerDuration =
   C.hCenter $
     padTopBottom 1 $
-      withAttr timerAttr $
         padTopBottom 1 $
           padLeftRight 1 $
             str $

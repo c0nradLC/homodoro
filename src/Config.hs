@@ -2,10 +2,11 @@
 
 module Config
   ( createConfigFileIfNotExists,
-    getTasksFilePath,
-    getInitialTimer,
+    readConfig,
+    readTasksFilePath,
+    readInitialTimer,
+    readStartStopSound,
     updateConfig,
-    getConfig,
     extractFilePathValue,
     extractInitialTimerValue,
     extractStartStopSoundValue,
@@ -42,20 +43,20 @@ defaultConfig = do
 
 createConfigFileIfNotExists :: IO ()
 createConfigFileIfNotExists = do
-  configFilePath <- getConfigFilePath
+  configFilePath <- xdgConfigFilePath
   D.createDirectoryIfMissing True (FP.takeDirectory configFilePath)
   fileExists <- D.doesFileExist configFilePath
   defaultConfigFile <- defaultConfig
   unless fileExists $ do BSL.writeFile configFilePath $ encode defaultConfigFile
 
-getConfigFilePath :: IO FilePath
-getConfigFilePath = do
+xdgConfigFilePath :: IO FilePath
+xdgConfigFilePath = do
   xdgConfigPath <- D.getXdgDirectory D.XdgConfig ""
   pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
 
 updateConfig :: ConfigFileOperation -> IO ConfigFile
 updateConfig (AddInitialTimer timer time) = do
-  configFile <- getConfig
+  configFile <- readConfig
   case timer of
     Pomodoro -> do
       let updatedConfigFile = configFile & pomodoroInitialTimer . configValue %~ addInitialTimer
@@ -73,7 +74,7 @@ updateConfig (AddInitialTimer timer time) = do
       addInitialTimer (ConfigInitialTimer _ val) = ConfigInitialTimer timer (max (val + time) 0) 
       addInitialTimer val = val
 updateConfig ToggleStartStopSound = do
-  configFile <- getConfig
+  configFile <- readConfig
   let updatedConfigFile = configFile & startStopSound . configValue %~ toggleBool
   writeConfig updatedConfigFile 
   return updatedConfigFile
@@ -83,24 +84,23 @@ updateConfig ToggleStartStopSound = do
 
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
-  configFilePath <- getConfigFilePath
+  configFilePath <- xdgConfigFilePath
   BSL.writeFile configFilePath $ encode cfg
 
-getConfig :: IO ConfigFile
-getConfig = do
-  configFilePath <- getConfigFilePath
+readConfig :: IO ConfigFile
+readConfig = do
+  configFilePath <- xdgConfigFilePath
   configFileContent <- BSL.readFile configFilePath
   maybe defaultConfig return (decode configFileContent)
 
-getTasksFilePath :: IO FilePath
-getTasksFilePath = do
-  configFile <- getConfig
-  let tasksFilePathSetting = configFile ^. tasksFilePath
-  return $ extractFilePathValue tasksFilePathSetting
+readTasksFilePath :: IO FilePath
+readTasksFilePath = do
+  configFile <- readConfig
+  return $ extractFilePathValue $ configFile ^. tasksFilePath
 
-getInitialTimer :: Timer -> IO Int
-getInitialTimer timer = do
-  configFile <- getConfig
+readInitialTimer :: Timer -> IO Int
+readInitialTimer timer = do
+  configFile <- readConfig
   let pomodoroInitialTimerSetting   = configFile ^. pomodoroInitialTimer
       shortBreakInitialTimerSetting = configFile ^. shortBreakInitialTimer
       longBreakInitialTimerSetting  = configFile ^. longBreakInitialTimer
@@ -111,6 +111,11 @@ getInitialTimer timer = do
                 in return initialTimer
     LongBreak -> let (_, initialTimer) = extractInitialTimerValue longBreakInitialTimerSetting
                 in return initialTimer
+
+readStartStopSound :: IO Bool
+readStartStopSound = do
+  configFile <- readConfig
+  return $ extractStartStopSoundValue $ configFile ^. startStopSound
 
 configFileSettings :: ConfigFile -> [ConfigSetting]
 configFileSettings configFile =

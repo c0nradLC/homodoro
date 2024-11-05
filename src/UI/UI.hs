@@ -18,7 +18,7 @@ import Brick
     vBox,
     withAttr,
     withBorderStyle,
-    (<=>), padBottom, padLeftRight
+    (<=>), padBottom, padLeftRight, fill
   )
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Focus as BF
@@ -30,8 +30,8 @@ import Brick.Widgets.Edit
     renderEditor,
   )
 import qualified Brick.Widgets.List as BL
-import Config (getInitialTimer, configFileSettings, extractInitialTimerValue, initialTimerSetting)
-import qualified Config as CFG (createConfigFileIfNotExists, getConfig)
+import Config (readInitialTimer, configFileSettings, extractInitialTimerValue, initialTimerSetting)
+import qualified Config as CFG (createConfigFileIfNotExists, readConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State
@@ -53,7 +53,7 @@ import Resources
     taskList, configList, initialTimerDialog, pomodoroTimer, shortBreakTimer, longBreakTimer,
   )
 import qualified Resources as R
-import Task (createTasksFileIfNotExists, getTasks)
+import Task (createTasksFileIfNotExists, readTasks)
 import UI.Attributes
   ( attributes,
     selectedTaskAttr,
@@ -82,11 +82,11 @@ uiMain = do
 createAppState :: IO AppState
 createAppState = do
   createTasksFileIfNotExists
-  tasks <- getTasks
-  configFile   <- CFG.getConfig
-  setPomodoroInitialTimer <- getInitialTimer R.Pomodoro
-  setShortBreakInitialTimer <- getInitialTimer R.ShortBreak
-  setLongBreakInitialTimer <- getInitialTimer R.LongBreak
+  tasks <- readTasks
+  configFile   <- CFG.readConfig
+  setPomodoroInitialTimer <- readInitialTimer R.Pomodoro
+  setShortBreakInitialTimer <- readInitialTimer R.ShortBreak
+  setLongBreakInitialTimer <- readInitialTimer R.LongBreak
   return AppState
     { _timerRunning = False,
       _pomodoroCounter = 0,
@@ -102,7 +102,7 @@ createAppState = do
                             ],
       _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1,
       _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1,
-      _initialTimerDialog = timerDialog Pomodoro
+      _initialTimerDialog = timerDialog (Just 0) Pomodoro
     }
 
 app :: App AppState Tick Name
@@ -128,7 +128,7 @@ drawUI s =
               (Pomodoro, 0)
               extractInitialTimerValue
               (initialTimerSetting timer configListL)
-      [B.border $ C.hCenter $
+      [B.border $ C.center $
         drawConfigList (s ^. configList)
         <=> renderDialog (s ^. initialTimerDialog)
               (vBox
@@ -139,9 +139,8 @@ drawUI s =
                   ShortBreak -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. shortBreakTimer
                   LongBreak  -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. longBreakTimer)
               , C.hCenter $ txt "[Up arrow]   - Increase by 1min"
-              , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"
-                  ])
-            ]
+              , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"])
+              <=> fill ' ']
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawCommandsTip]
 
 drawCommandsTip :: Widget Name

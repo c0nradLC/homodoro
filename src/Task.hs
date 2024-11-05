@@ -3,7 +3,7 @@
 module Task
   ( createTasksFileIfNotExists,
     taskExists,
-    getTasks,
+    readTasks,
     mkTask,
     updateTaskList,
   )
@@ -21,7 +21,7 @@ import qualified System.FilePath as FP
 
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
-  filePath <- CFG.getTasksFilePath
+  filePath <- CFG.readTasksFilePath
   D.createDirectoryIfMissing True (FP.takeDirectory filePath)
   fileExists <- D.doesFileExist filePath
   unless fileExists $ do BSL.writeFile filePath ""
@@ -31,7 +31,7 @@ mkTask txt = Task {_taskContent = txt, _taskCompleted = False}
 
 updateTaskList :: TaskListUpdate
 updateTaskList cop = do
-  tasks <- getTasks
+  tasks <- readTasks
   case cop of
     (AppendTask task) -> writeTasks (task : tasks)
     (DeleteTask task) -> writeTasks $ filter (/= task) tasks
@@ -40,13 +40,13 @@ updateTaskList cop = do
 
 writeTasks :: [Task] -> IO [Task]
 writeTasks tasks = do
-  tasksFilePath <- CFG.getTasksFilePath
+  tasksFilePath <- CFG.readTasksFilePath
   BSL.writeFile tasksFilePath $ encode tasks
   return tasks
 
-getTasks :: IO [Task]
-getTasks = do
-  tasksFilePath <- CFG.getTasksFilePath
+readTasks :: IO [Task]
+readTasks = do
+  tasksFilePath <- CFG.readTasksFilePath
   tasksFromFile <- BSL.readFile tasksFilePath
   case decode tasksFromFile of
     Just task -> do
@@ -55,6 +55,6 @@ getTasks = do
 
 taskExists :: T.Text -> IO Bool
 taskExists content = do
-  tasks <- getTasks
+  tasks <- readTasks
   let tasksContents = map (view taskContent) tasks
   return $ content `elem` tasksContents

@@ -13,21 +13,21 @@ import Control.Lens (Lens', uses, (.=), (^.))
 import Control.Monad (when)
 import Control.Monad.Cont (MonadIO (liftIO))
 import qualified Notify as NT
-import Resources (AppState, Name (..), Timer (..), focus, longBreakTimer, pomodoroCounter, pomodoroCyclesCounter, pomodoroTimer, shortBreakTimer, timerRunning)
+import Resources (AppState, Name (..), Timer (..), focus, longBreakTimer, pomodoroCounter, pomodoroCyclesCounter, pomodoroTimer, shortBreakTimer, timerRunning, Audio (TimerEnded))
 
 stopTimerAndAlert :: String -> EventM Name AppState ()
 stopTimerAndAlert msg = do
   timerRunning .= False
-  _ <- liftIO $ forkIO NT.playAlertSound
+  _ <- liftIO $ forkIO $ NT.playAudio TimerEnded
   NT.alertRoundEnded msg
 
 finishRound :: Lens' AppState Int -> Timer -> EventM Name AppState ()
 finishRound timer currentTimer = do
-  initialTimer <- liftIO $ CFG.getInitialTimer currentTimer
+  initialTimer <- liftIO $ CFG.readInitialTimer currentTimer
   timer .= initialTimer
 
 tickTimer :: Maybe Name -> AppState -> EventM Name AppState ()
-tickTimer currentFocus s =
+tickTimer currentFocus s = 
   case currentFocus of
     Just (TaskList Pomodoro) -> do
       pomodoroTimer .= max ((s ^. pomodoroTimer) - 1) 0

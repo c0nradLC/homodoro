@@ -10,6 +10,7 @@ import Control.Lens ((^.))
 import Brick.Widgets.Core (fill)
 import Brick.Widgets.Dialog (dialog, Dialog)
 import Config (configSettingsValueToText)
+import Data.Maybe (fromMaybe)
 
 drawConfigList :: BL.List Name ConfigSetting -> Widget Name
 drawConfigList cfg = do
@@ -26,9 +27,11 @@ drawConfig selected cfg = do
                 , fill ' '
                 , txt $ configSettingsValueToText $ cfg ^. configValue ]
 
-timerDialog :: Timer -> Dialog TimerDialogChoice
-timerDialog timer = 
-    dialog title (Just (0, options)) 50
+timerDialog :: Maybe Int -> Timer -> Dialog TimerDialogChoice
+timerDialog selectedButtonIndex timer =
+    let btnIdx = fromMaybe 0 selectedButtonIndex
+    in
+    dialog title (Just (btnIdx, options)) 50
         where
             options = [("Ok", Ok), ("Reset active timer", ResetTimer)]
             title   = case timer of

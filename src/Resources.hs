@@ -15,6 +15,7 @@ module Resources
     TaskListUpdate,
     TaskListOperation (..),
     TimerDialogChoice(..),
+    Audio(..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -71,6 +72,13 @@ data Name
   deriving (Show, Eq, Ord)
 
 data Tick = Tick
+
+data Audio
+  = TimerEnded
+  | Start
+  | Stop
+  | TickingFast
+  | TickingSlow
 
 data Task = Task
   { _taskContent :: T.Text,

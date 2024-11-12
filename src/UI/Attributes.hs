@@ -8,14 +8,14 @@ module UI.Attributes
     taskCompletedWhiteBgLabelAttr,
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
-    selectedConfigAttr
+    selectedConfigAttr,
   )
 where
 
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
+import Brick.Widgets.Dialog (buttonAttr, buttonSelectedAttr)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
-import Brick.Widgets.Dialog (buttonSelectedAttr, buttonAttr)
 
 attributes :: AttrMap
 attributes =

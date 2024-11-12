@@ -7,14 +7,14 @@ where
 
 import Brick (EventM)
 import qualified Brick.Focus as BF
+import Config (readTickingSound)
 import qualified Config as CFG
 import Control.Concurrent (forkIO)
 import Control.Lens (Lens', uses, (.=), (^.))
 import Control.Monad (when)
 import Control.Monad.Cont (MonadIO (liftIO))
 import qualified Notify as NT
-import Resources (AppState, Name (..), Timer (..), focus, longBreakTimer, pomodoroCounter, pomodoroCyclesCounter, pomodoroTimer, shortBreakTimer, timerRunning, Audio (TimerEnded))
-import Config (readTickingSound)
+import Resources (AppState, Audio (TimerEnded), Name (..), Timer (..), focus, longBreakTimer, pomodoroCounter, pomodoroCyclesCounter, pomodoroTimer, shortBreakTimer, timerRunning)
 
 stopTimerAndAlert :: String -> EventM Name AppState ()
 stopTimerAndAlert msg = do
@@ -33,7 +33,7 @@ tickTimer currentFocus s = do
   case tickSound of
     (Just tick) -> liftIO $ NT.playAudio tick
     _ -> return ()
--- TODO move the case below from this method to the EventHandler, or think of a better way of simplyfying this function
+  -- TODO move the case below from this method to the EventHandler, or think of a better way of simplyfying this function
   case currentFocus of
     Just (TaskList Pomodoro) -> do
       pomodoroTimer .= max ((s ^. pomodoroTimer) - 1) 0

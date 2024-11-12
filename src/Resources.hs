@@ -14,8 +14,8 @@ module Resources
     Task (..),
     TaskListUpdate,
     TaskListOperation (..),
-    TimerDialogChoice(..),
-    Audio(..),
+    TimerDialogChoice (..),
+    Audio (..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -36,23 +36,24 @@ module Resources
     tasksFilePath,
     startStopSound,
     tickingSound,
-    initialTimerDialog
+    initialTimerDialog,
   )
 where
 
 import qualified Brick.Focus as BF
+import Brick.Widgets.Dialog (Dialog)
 import Brick.Widgets.Edit (Editor)
 import qualified Brick.Widgets.List as BL
 import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
-import Brick.Widgets.Dialog (Dialog)
 
 data Timer
   = Pomodoro
   | ShortBreak
   | LongBreak
   deriving (Show, Eq, Ord)
+
 deriveJSON defaultOptions ''Timer
 
 data TimerDialogChoice
@@ -81,12 +82,14 @@ data Audio
   | FastTick
   | SlowTick
   deriving (Show, Eq)
+
 deriveJSON defaultOptions ''Audio
 
 data Task = Task
   { _taskContent :: T.Text,
     _taskCompleted :: Bool
   }
+
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
@@ -103,30 +106,35 @@ data TaskListOperation
 
 type TaskListUpdate = TaskListOperation -> IO [Task]
 
-data ConfigSettingValue 
+data ConfigSettingValue
   = ConfigInitialTimer Timer Int
   | ConfigStartStopSound Bool
   | ConfigTickingSound (Maybe Audio)
   | ConfigTasksFilePath FilePath
   deriving (Show, Eq)
+
 makeLenses ''ConfigSettingValue
 deriveJSON defaultOptions ''ConfigSettingValue
 
 data ConfigSetting = ConfigSetting
-  { _configLabel :: T.Text
-  , _configValue :: ConfigSettingValue
-  } deriving (Show, Eq)
+  { _configLabel :: T.Text,
+    _configValue :: ConfigSettingValue
+  }
+  deriving (Show, Eq)
+
 makeLenses ''ConfigSetting
 deriveJSON defaultOptions ''ConfigSetting
 
 data ConfigFile = ConfigFile
-  { _pomodoroInitialTimer   :: ConfigSetting
-  , _shortBreakInitialTimer :: ConfigSetting
-  , _longBreakInitialTimer  :: ConfigSetting
-  , _tasksFilePath          :: ConfigSetting
-  , _startStopSound         :: ConfigSetting
-  , _tickingSound           :: ConfigSetting
-  } deriving (Show, Eq)
+  { _pomodoroInitialTimer :: ConfigSetting,
+    _shortBreakInitialTimer :: ConfigSetting,
+    _longBreakInitialTimer :: ConfigSetting,
+    _tasksFilePath :: ConfigSetting,
+    _startStopSound :: ConfigSetting,
+    _tickingSound :: ConfigSetting
+  }
+  deriving (Show, Eq)
+
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
 
@@ -148,5 +156,5 @@ data AppState = AppState
     _configList :: BL.List Name ConfigSetting,
     _initialTimerDialog :: Dialog TimerDialogChoice
   }
-makeLenses ''AppState
 
+makeLenses ''AppState

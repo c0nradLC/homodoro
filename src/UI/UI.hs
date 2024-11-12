@@ -8,7 +8,10 @@ import Brick
     Widget,
     customMain,
     emptyWidget,
+    fill,
+    padBottom,
     padLeft,
+    padLeftRight,
     padTop,
     showFirstCursor,
     str,
@@ -18,19 +21,20 @@ import Brick
     vBox,
     withAttr,
     withBorderStyle,
-    (<=>), padBottom, padLeftRight, fill
+    (<=>),
   )
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
+import Brick.Widgets.Dialog (renderDialog)
 import Brick.Widgets.Edit
   ( editor,
     renderEditor,
   )
 import qualified Brick.Widgets.List as BL
-import Config (readInitialTimer, configFileSettings, extractInitialTimerValue, initialTimerSetting)
+import Config (configFileSettings, extractInitialTimerValue, initialTimerSetting, readInitialTimer)
 import qualified Config as CFG (createConfigFileIfNotExists, readConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
@@ -48,9 +52,14 @@ import Resources
     TaskAction (Edit, Insert),
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
+    configList,
     focus,
+    initialTimerDialog,
+    longBreakTimer,
+    pomodoroTimer,
+    shortBreakTimer,
     taskEditor,
-    taskList, configList, initialTimerDialog, pomodoroTimer, shortBreakTimer, longBreakTimer,
+    taskList,
   )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, readTasks)
@@ -60,12 +69,12 @@ import UI.Attributes
     taskCompletedLabelAttr,
     taskCompletedWhiteBgLabelAttr,
     taskPendingLabelAttr,
-    taskPendingWhiteBgLabelAttr, timerAttr,
+    taskPendingWhiteBgLabelAttr,
+    timerAttr,
   )
+import UI.Config (drawConfigList, timerDialog)
 import UI.EventHandler (handleEvent)
 import UI.Timer (drawTimers, formatTimer)
-import UI.Config (drawConfigList, timerDialog)
-import Brick.Widgets.Dialog (renderDialog)
 
 uiMain :: IO ()
 uiMain = do
@@ -83,27 +92,36 @@ createAppState :: IO AppState
 createAppState = do
   createTasksFileIfNotExists
   tasks <- readTasks
-  configFile   <- CFG.readConfig
+  configFile <- CFG.readConfig
   setPomodoroInitialTimer <- readInitialTimer R.Pomodoro
   setShortBreakInitialTimer <- readInitialTimer R.ShortBreak
   setLongBreakInitialTimer <- readInitialTimer R.LongBreak
-  return AppState
-    { _timerRunning = False,
-      _pomodoroCounter = 0,
-      _pomodoroCyclesCounter = 0,
-      _pomodoroTimer = setPomodoroInitialTimer,
-      _shortBreakTimer = setShortBreakInitialTimer,
-      _longBreakTimer = setLongBreakInitialTimer,
-      _taskEditor = editor (TaskEdit Insert) (Just 5) "",
-      _focus = BF.focusRing [ TaskList Pomodoro, TaskList ShortBreak, TaskList LongBreak,
-                              TaskEdit Insert, TaskEdit Edit,
-                              Commands, Config,
-                              InitialTimerDialog Pomodoro, InitialTimerDialog ShortBreak, InitialTimerDialog LongBreak
-                            ],
-      _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1,
-      _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1,
-      _initialTimerDialog = timerDialog (Just 0) Pomodoro
-    }
+  return
+    AppState
+      { _timerRunning = False,
+        _pomodoroCounter = 0,
+        _pomodoroCyclesCounter = 0,
+        _pomodoroTimer = setPomodoroInitialTimer,
+        _shortBreakTimer = setShortBreakInitialTimer,
+        _longBreakTimer = setLongBreakInitialTimer,
+        _taskEditor = editor (TaskEdit Insert) (Just 5) "",
+        _focus =
+          BF.focusRing
+            [ TaskList Pomodoro,
+              TaskList ShortBreak,
+              TaskList LongBreak,
+              TaskEdit Insert,
+              TaskEdit Edit,
+              Commands,
+              Config,
+              InitialTimerDialog Pomodoro,
+              InitialTimerDialog ShortBreak,
+              InitialTimerDialog LongBreak
+            ],
+        _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1,
+        _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1,
+        _initialTimerDialog = timerDialog (Just 0) Pomodoro
+      }
 
 app :: App AppState Tick Name
 app =
@@ -122,25 +140,35 @@ drawUI s =
     Just Commands -> [B.border $ C.center drawCommandsScreen]
     Just Config -> [B.border $ C.center $ drawConfigList (s ^. configList)]
     Just (InitialTimerDialog timer) -> do
-      let configListL                   = DV.toList $ BL.listElements (s ^. configList)
+      let configListL = DV.toList $ BL.listElements (s ^. configList)
           (_, currentInitialTimerValue) =
             maybe
               (Pomodoro, 0)
               extractInitialTimerValue
               (initialTimerSetting timer configListL)
-      [B.border $ C.center $
-        drawConfigList (s ^. configList)
-        <=> renderDialog (s ^. initialTimerDialog)
-              (vBox
-              [ padTop (Pad 1) $ C.hCenter (txt "Initial timer") <=>
-                  C.hCenter (withAttr timerAttr (padLeftRight 1 $ str $ formatTimer currentInitialTimerValue))
-              , padTop (Pad 1) $ C.hCenter (txt "Active timer value") <=> C.hCenter (padBottom (Pad 1) $ case timer of
-                  Pomodoro   -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. pomodoroTimer
-                  ShortBreak -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. shortBreakTimer
-                  LongBreak  -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. longBreakTimer)
-              , C.hCenter $ txt "[Up arrow]   - Increase by 1min"
-              , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"])
-              <=> fill ' ']
+      [ B.border $
+          C.center $
+            drawConfigList (s ^. configList)
+              <=> renderDialog
+                (s ^. initialTimerDialog)
+                ( vBox
+                    [ padTop (Pad 1) $
+                        C.hCenter (txt "Initial timer")
+                          <=> C.hCenter (withAttr timerAttr (padLeftRight 1 $ str $ formatTimer currentInitialTimerValue)),
+                      padTop (Pad 1) $
+                        C.hCenter (txt "Active timer value")
+                          <=> C.hCenter
+                            ( padBottom (Pad 1) $ case timer of
+                                Pomodoro -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. pomodoroTimer
+                                ShortBreak -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. shortBreakTimer
+                                LongBreak -> C.hCenter $ padLeftRight 1 $ str $ formatTimer $ s ^. longBreakTimer
+                            ),
+                      C.hCenter $ txt "[Up arrow]   - Increase by 1min",
+                      C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"
+                    ]
+                )
+              <=> fill ' '
+        ]
     _ -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawCommandsTip]
 
 drawCommandsTip :: Widget Name

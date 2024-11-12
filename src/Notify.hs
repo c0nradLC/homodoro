@@ -16,7 +16,7 @@ import Data.FileEmbed (embedFile)
 import qualified Libnotify.C.Notify as LN
 import Libnotify.C.NotifyNotification (Timeout (..), notify_notification_set_timeout, notify_notification_show)
 import qualified Libnotify.C.NotifyNotification as LN
-import Resources (AppState, Name, Audio (..))
+import Resources (AppState, Audio (..), Name)
 import qualified SDL
 import qualified SDL.Mixer as Mix
 import System.IO (hClose)
@@ -42,10 +42,10 @@ stopAudio :: SB.ByteString
 stopAudio = $(embedFile "resources/stop_audio.mp3")
 
 slowTickAudio :: SB.ByteString
-slowTickAudio  = $(embedFile "resources/slow_tick_audio.mp3")
+slowTickAudio = $(embedFile "resources/slow_tick_audio.mp3")
 
 fastTickAudio :: SB.ByteString
-fastTickAudio  = $(embedFile "resources/fast_tick_audio.mp3")
+fastTickAudio = $(embedFile "resources/fast_tick_audio.mp3")
 
 playAudio :: Audio -> IO ()
 playAudio audio = do

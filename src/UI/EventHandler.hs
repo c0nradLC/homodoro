@@ -5,22 +5,22 @@ module UI.EventHandler (handleEvent) where
 import Brick (BrickEvent (AppEvent, VtyEvent), EventM, halt)
 import qualified Brick as BT
 import qualified Brick.Focus as BF
+import Brick.Widgets.Dialog (dialogSelection, handleDialogEvent)
 import Brick.Widgets.Edit (editor, getEditContents)
 import qualified Brick.Widgets.Edit as BE
 import qualified Brick.Widgets.List as BL
-import Config (readInitialTimer, updateConfig, configFileSettings, readStartStopSound)
+import Config (configFileSettings, readInitialTimer, readStartStopSound, updateConfig)
 import Control.Lens ((.=), (^.))
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
 import qualified Data.Text as Txt
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty as VE
-import Resources (AppState, ConfigFileOperation (..), Name (Commands, TaskEdit, TaskList, Config, InitialTimerDialog), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, configList, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), configValue, initialTimerDialog, TimerDialogChoice (..), Audio (..))
+import qualified Notify as NT
+import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), Name (Commands, Config, InitialTimerDialog, TaskEdit, TaskList), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerDialogChoice (..), configList, configValue, focus, initialTimerDialog, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning)
 import Task (mkTask, taskExists, updateTaskList)
 import Timer (tickTimer)
-import Brick.Widgets.Dialog (handleDialogEvent, dialogSelection)
 import UI.Config (timerDialog)
-import qualified Notify as NT
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -31,9 +31,9 @@ handleEvent ev = do
       when (s ^. timerRunning) $ do
         tickTimer currentFocus s
     (VtyEvent vev@(VE.EvKey k ms)) -> do
-      let selectedListTask  = BL.listSelectedElement (s ^. taskList)
+      let selectedListTask = BL.listSelectedElement (s ^. taskList)
           taskEditorContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)
-          (selectedIndex, selectedTask)      = case selectedListTask of
+          (selectedIndex, selectedTask) = case selectedListTask of
             Just (idx, task) -> (idx, task)
             _ -> (-1, mkTask "")
       case currentFocus of
@@ -59,53 +59,53 @@ handleEvent ev = do
             _ -> do
               BT.zoom taskEditor $ BE.handleEditorEvent ev
         Just (TaskList timer) -> do
-              case (k, ms) of
-                (V.KChar 'e', []) -> do
-                  let selectedTaskContent = selectedTask ^. taskContent
-                  taskEditor .= editor (TaskEdit Edit) (Just 5) selectedTaskContent
-                  changeFocus (TaskEdit Edit) s
-                (V.KChar 'c', [V.MCtrl]) -> do
-                  modifiedTaskList <- liftIO $ updateTaskList (ChangeTaskCompletion selectedTask)
-                  taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
-                (V.KDel, []) -> do
-                  modifiedTaskList <- liftIO $ updateTaskList (DeleteTask selectedTask)
-                  if selectedIndex - 1 == length modifiedTaskList
-                    then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
-                    else
-                      if selectedIndex == 0
-                        then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just 0) (s ^. taskList)
-                        else taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just $ length modifiedTaskList - 1) (s ^. taskList)
-                (V.KChar 't', []) -> do
-                  changeFocus (TaskEdit Insert) s
-                (V.KChar 'q', []) -> do
-                  halt
-                (V.KChar 'c', []) -> do
-                  changeFocus Commands s
-                (V.KChar 's', []) -> do
-                  startStopSoundActive <- liftIO readStartStopSound
-                  when startStopSoundActive $
-                    if s ^. timerRunning then do 
-                      liftIO $ NT.playAudio Stop
-                    else
-                      liftIO $ NT.playAudio Start
-                  timerRunning .= not (s ^. timerRunning)
-                (V.KChar 'r', []) -> do
-                  initialTimer <- liftIO $ readInitialTimer timer
-                  case timer of
-                    Pomodoro -> do
-                      pomodoroTimer .= initialTimer
-                    ShortBreak -> do
-                      shortBreakTimer .= initialTimer
-                    LongBreak -> do
-                      longBreakTimer .= initialTimer
-                (V.KBackTab, []) -> do
-                  timerRunning .= False
-                  case timer of
-                    Pomodoro -> changeFocus (TaskList ShortBreak) s
-                    ShortBreak -> changeFocus (TaskList LongBreak) s
-                    LongBreak -> changeFocus (TaskList Pomodoro) s
-                (V.KChar 'p', []) -> changeFocus Config s
-                _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
+          case (k, ms) of
+            (V.KChar 'e', []) -> do
+              let selectedTaskContent = selectedTask ^. taskContent
+              taskEditor .= editor (TaskEdit Edit) (Just 5) selectedTaskContent
+              changeFocus (TaskEdit Edit) s
+            (V.KChar 'c', [V.MCtrl]) -> do
+              modifiedTaskList <- liftIO $ updateTaskList (ChangeTaskCompletion selectedTask)
+              taskList .= BL.listReplace (DV.fromList modifiedTaskList) (BL.listSelected $ s ^. taskList) (s ^. taskList)
+            (V.KDel, []) -> do
+              modifiedTaskList <- liftIO $ updateTaskList (DeleteTask selectedTask)
+              if selectedIndex - 1 == length modifiedTaskList
+                then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just selectedIndex) (s ^. taskList)
+                else
+                  if selectedIndex == 0
+                    then taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just 0) (s ^. taskList)
+                    else taskList .= BL.listReplace (DV.fromList modifiedTaskList) (Just $ length modifiedTaskList - 1) (s ^. taskList)
+            (V.KChar 't', []) -> do
+              changeFocus (TaskEdit Insert) s
+            (V.KChar 'q', []) -> do
+              halt
+            (V.KChar 'c', []) -> do
+              changeFocus Commands s
+            (V.KChar 's', []) -> do
+              startStopSoundActive <- liftIO readStartStopSound
+              when startStopSoundActive $
+                if s ^. timerRunning
+                  then do
+                    liftIO $ NT.playAudio Stop
+                  else liftIO $ NT.playAudio Start
+              timerRunning .= not (s ^. timerRunning)
+            (V.KChar 'r', []) -> do
+              initialTimer <- liftIO $ readInitialTimer timer
+              case timer of
+                Pomodoro -> do
+                  pomodoroTimer .= initialTimer
+                ShortBreak -> do
+                  shortBreakTimer .= initialTimer
+                LongBreak -> do
+                  longBreakTimer .= initialTimer
+            (V.KBackTab, []) -> do
+              timerRunning .= False
+              case timer of
+                Pomodoro -> changeFocus (TaskList ShortBreak) s
+                ShortBreak -> changeFocus (TaskList LongBreak) s
+                LongBreak -> changeFocus (TaskList Pomodoro) s
+            (V.KChar 'p', []) -> changeFocus Config s
+            _ -> BT.zoom taskList $ BL.handleListEventVi BL.handleListEvent vev
         Just Commands ->
           case (k, ms) of
             (V.KChar 'p', []) -> changeFocus Config s
@@ -116,27 +116,27 @@ handleEvent ev = do
               changeFocus (TaskList Pomodoro) s
             (V.KEsc, []) -> changeFocus (TaskList Pomodoro) s
             (V.KEnter, []) -> do
-              let selectedConfigElement         = BL.listSelectedElement (s ^. configList)
-                  (_, selectedConfigSetting)    = case selectedConfigElement of
+              let selectedConfigElement = BL.listSelectedElement (s ^. configList)
+                  (_, selectedConfigSetting) = case selectedConfigElement of
                     Just (idx, configSetting) -> (idx, configSetting)
                     _ -> (-1, ConfigSetting {_configLabel = "", _configValue = ConfigInitialTimer Pomodoro 0})
               case selectedConfigSetting ^. configValue of
                 ConfigStartStopSound _ -> do
                   updatedConfigSettings <- liftIO $ updateConfig ToggleStartStopSound
-                  configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
+                  configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList)
                 ConfigInitialTimer timer _ -> do
                   initialTimerDialog .= timerDialog (Just 0) timer
                   changeFocus (InitialTimerDialog timer) s
-                _ -> return()
+                _ -> return ()
             _ -> BT.zoom configList $ BL.handleListEventVi BL.handleListEvent vev
         Just (InitialTimerDialog timer) -> do
           case (k, ms) of
             (V.KUp, []) -> do
               updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer 60)
-              configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
+              configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList)
             (V.KDown, []) -> do
               updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer (-60))
-              configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList )
+              configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList)
             (V.KEnter, []) -> case dialogSelection (s ^. initialTimerDialog) of
               Just Ok -> changeFocus Config s
               Just ResetTimer -> do

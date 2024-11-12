@@ -35,6 +35,7 @@ module Resources
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
+    tickingSound,
     initialTimerDialog
   )
 where
@@ -77,8 +78,10 @@ data Audio
   = TimerEnded
   | Start
   | Stop
-  | TickingFast
-  | TickingSlow
+  | FastTick
+  | SlowTick
+  deriving (Show, Eq)
+deriveJSON defaultOptions ''Audio
 
 data Task = Task
   { _taskContent :: T.Text,
@@ -103,6 +106,7 @@ type TaskListUpdate = TaskListOperation -> IO [Task]
 data ConfigSettingValue 
   = ConfigInitialTimer Timer Int
   | ConfigStartStopSound Bool
+  | ConfigTickingSound (Maybe Audio)
   | ConfigTasksFilePath FilePath
   deriving (Show, Eq)
 makeLenses ''ConfigSettingValue
@@ -121,6 +125,7 @@ data ConfigFile = ConfigFile
   , _longBreakInitialTimer  :: ConfigSetting
   , _tasksFilePath          :: ConfigSetting
   , _startStopSound         :: ConfigSetting
+  , _tickingSound           :: ConfigSetting
   } deriving (Show, Eq)
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
@@ -128,6 +133,7 @@ deriveJSON defaultOptions ''ConfigFile
 data ConfigFileOperation
   = AddInitialTimer Timer Int
   | ToggleStartStopSound
+  | ChangeTickingSound (Maybe Audio)
 
 data AppState = AppState
   { _timerRunning :: Bool,

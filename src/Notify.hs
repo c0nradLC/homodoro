@@ -41,6 +41,12 @@ startAudio = $(embedFile "resources/start_audio.mp3")
 stopAudio :: SB.ByteString
 stopAudio = $(embedFile "resources/stop_audio.mp3")
 
+slowTickAudio :: SB.ByteString
+slowTickAudio  = $(embedFile "resources/slow_tick_audio.mp3")
+
+fastTickAudio :: SB.ByteString
+fastTickAudio  = $(embedFile "resources/fast_tick_audio.mp3")
+
 playAudio :: Audio -> IO ()
 playAudio audio = do
   SDL.initialize [SDL.InitAudio]
@@ -51,7 +57,8 @@ playAudio audio = do
       TimerEnded -> timerEndedAudio
       Start -> startAudio
       Stop -> stopAudio
-      _ -> ""
+      SlowTick -> slowTickAudio
+      FastTick -> fastTickAudio
     let audioFileTest = tempPath
     hClose tempHandle
 

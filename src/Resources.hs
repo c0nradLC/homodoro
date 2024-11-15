@@ -81,6 +81,7 @@ data Audio
   | Stop
   | FastTick
   | SlowTick
+  | None
   deriving (Show, Eq)
 
 deriveJSON defaultOptions ''Audio
@@ -109,7 +110,7 @@ type TaskListUpdate = TaskListOperation -> IO [Task]
 data ConfigSettingValue
   = ConfigInitialTimer Timer Int
   | ConfigStartStopSound Bool
-  | ConfigTickingSound (Maybe Audio)
+  | ConfigTickingSound Audio
   | ConfigTasksFilePath FilePath
   deriving (Show, Eq)
 
@@ -141,7 +142,7 @@ deriveJSON defaultOptions ''ConfigFile
 data ConfigFileOperation
   = AddInitialTimer Timer Int
   | ToggleStartStopSound
-  | ChangeTickingSound (Maybe Audio)
+  | CycleTickingSound
 
 data AppState = AppState
   { _timerRunning :: Bool,

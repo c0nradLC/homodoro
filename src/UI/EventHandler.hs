@@ -127,6 +127,9 @@ handleEvent ev = do
                 ConfigInitialTimer timer _ -> do
                   initialTimerDialog .= timerDialog (Just 0) timer
                   changeFocus (InitialTimerDialog timer) s
+                ConfigTickingSound _ -> do
+                  updatedConfigSettings <- liftIO $ updateConfig CycleTickingSound
+                  configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList)
                 _ -> return ()
             _ -> BT.zoom configList $ BL.handleListEventVi BL.handleListEvent vev
         Just (InitialTimerDialog timer) -> do

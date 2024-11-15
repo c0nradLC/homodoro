@@ -21,6 +21,7 @@ import qualified SDL
 import qualified SDL.Mixer as Mix
 import System.IO (hClose)
 import System.IO.Temp (withSystemTempFile)
+import Control.Concurrent (threadDelay)
 
 alertRoundEnded :: String -> EventM Name AppState ()
 alertRoundEnded msg = liftIO $ do
@@ -59,20 +60,21 @@ playAudio audio = do
       Stop -> stopAudio
       SlowTick -> slowTickAudio
       FastTick -> fastTickAudio
-    let audioFileTest = tempPath
+      _ -> ""
     hClose tempHandle
 
     Mix.openAudio def 256
-    sound <- Mix.load audioFileTest
+    sound <- Mix.load tempPath
     Mix.play sound
     whileTrueM $ Mix.playing Mix.AllChannels
 
+    Mix.haltMusic
     Mix.free sound
 
   Mix.closeAudio
-
+  threadDelay 1000
   Mix.quit
-  SDL.quit
+
 
 whileTrueM :: Monad m => m Bool -> m ()
 whileTrueM cond = do

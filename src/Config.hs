@@ -25,7 +25,7 @@ import Data.Aeson hiding ((.=))
 import qualified Data.ByteString.Lazy as BSL
 import Data.List (find)
 import qualified Data.Text as T
-import Resources (Audio, ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, tickingSound)
+import Resources (Audio (..), ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, tickingSound)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import UI.Timer (formatTimer)
@@ -40,7 +40,7 @@ defaultConfig = do
         _longBreakInitialTimer = ConfigSetting {_configLabel = "Long break initial timer", _configValue = ConfigInitialTimer LongBreak 900},
         _tasksFilePath = ConfigSetting {_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks"},
         _startStopSound = ConfigSetting {_configLabel = "Start/Stop sound", _configValue = ConfigStartStopSound False},
-        _tickingSound = ConfigSetting {_configLabel = "Timer ticking sound", _configValue = ConfigTickingSound Nothing}
+        _tickingSound = ConfigSetting {_configLabel = "Timer ticking sound", _configValue = ConfigTickingSound None}
       }
 
 createConfigFileIfNotExists :: IO ()
@@ -77,11 +77,17 @@ updateConfig ToggleStartStopSound = do
   where
     toggleBool (ConfigStartStopSound b) = ConfigStartStopSound (not b)
     toggleBool val = val
-updateConfig (ChangeTickingSound mbTick) = do
+updateConfig CycleTickingSound = do
   configFile <- readConfig
-  let updatedConfigFile = configFile & tickingSound . configValue .~ ConfigTickingSound mbTick
+  let currentTickSound = extractTickingSoundValue $ configFile ^. tickingSound
+      updatedConfigFile = configFile & tickingSound . configValue .~ ConfigTickingSound (cycleTick currentTickSound)
   writeConfig updatedConfigFile
   return updatedConfigFile
+  where
+    cycleTick currentTick = case currentTick of
+      FastTick -> SlowTick
+      SlowTick -> None
+      _ -> FastTick
 
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
@@ -121,7 +127,7 @@ readStartStopSound = do
   configFile <- readConfig
   return $ extractStartStopSoundValue $ configFile ^. startStopSound
 
-readTickingSound :: IO (Maybe Audio)
+readTickingSound :: IO Audio
 readTickingSound = do
   configFile <- readConfig
   return $ extractTickingSoundValue $ configFile ^. tickingSound
@@ -162,6 +168,6 @@ extractStartStopSoundValue :: ConfigSetting -> Bool
 extractStartStopSoundValue (ConfigSetting _ (ConfigStartStopSound value)) = value
 extractStartStopSoundValue _ = False
 
-extractTickingSoundValue :: ConfigSetting -> Maybe Audio
+extractTickingSoundValue :: ConfigSetting -> Audio
 extractTickingSoundValue (ConfigSetting _ (ConfigTickingSound tick)) = tick
-extractTickingSoundValue _ = Nothing
+extractTickingSoundValue _ = None

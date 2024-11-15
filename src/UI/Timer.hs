@@ -42,7 +42,7 @@ drawTimers s =
             )
             <=> timerAndPomodoroCounter longBreakTimer
     _ ->
-      C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=> timerAndPomodoroCounter pomodoroTimer
+      B.border $ C.hCenter (label "Pomodoro" <+> padLeftRight 2 (label "Short break") <+> label "Long break") <=> timerAndPomodoroCounter pomodoroTimer
   where
     timerAndPomodoroCounter timerLens =
       drawTimer (s ^. timerRunning) (s ^. timerLens)

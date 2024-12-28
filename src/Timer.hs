@@ -31,7 +31,9 @@ tickTimer :: Maybe Name -> AppState -> EventM Name AppState ()
 tickTimer currentFocus s = do
   tickSound <- liftIO readTickingSound
   case tickSound of
-    tick -> liftIO $ NT.playAudio tick
+    tick -> do
+      _ <- liftIO $ forkIO $ NT.playAudio tick
+      return ()
   -- TODO move the case below from this method to the EventHandler, or think of a better way of simplyfying this function
   case currentFocus of
     Just (TaskList Pomodoro) -> do

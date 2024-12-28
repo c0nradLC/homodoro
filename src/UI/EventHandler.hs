@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module UI.EventHandler (handleEvent) where
 
@@ -21,6 +22,7 @@ import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting 
 import Task (mkTask, taskExists, updateTaskList)
 import Timer (tickTimer)
 import UI.Config (timerDialog)
+import Control.Concurrent (forkIO)
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -86,8 +88,11 @@ handleEvent ev = do
               when startStopSoundActive $
                 if s ^. timerRunning
                   then do
-                    liftIO $ NT.playAudio Stop
-                  else liftIO $ NT.playAudio Start
+                    _ <- liftIO $ forkIO $ NT.playAudio Stop
+                    return ()
+                  else do
+                    liftIO $ forkIO $ NT.playAudio Start
+                    return ()
               timerRunning .= not (s ^. timerRunning)
             (V.KChar 'r', []) -> do
               initialTimer <- liftIO $ readInitialTimer timer

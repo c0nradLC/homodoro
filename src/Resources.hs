@@ -14,7 +14,7 @@ module Resources
     Task (..),
     TaskListUpdate,
     TaskListOperation (..),
-    TimerDialogChoice (..),
+    InitialTimerDialogChoice (..),
     Audio (..),
     timerRunning,
     pomodoroCounter,
@@ -35,8 +35,7 @@ module Resources
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
-    tickingSound,
-    initialTimerDialog,
+    initialTimerDialog
   )
 where
 
@@ -56,8 +55,8 @@ data Timer
 
 deriveJSON defaultOptions ''Timer
 
-data TimerDialogChoice
-  = Ok
+data InitialTimerDialogChoice
+  = CloseInitialTimerDialog
   | ResetTimer
 
 data TaskAction
@@ -110,7 +109,6 @@ type TaskListUpdate = TaskListOperation -> IO [Task]
 data ConfigSettingValue
   = ConfigInitialTimer Timer Int
   | ConfigStartStopSound Bool
-  | ConfigTickingSound Audio
   | ConfigTasksFilePath FilePath
   deriving (Show, Eq)
 
@@ -130,9 +128,8 @@ data ConfigFile = ConfigFile
   { _pomodoroInitialTimer :: ConfigSetting,
     _shortBreakInitialTimer :: ConfigSetting,
     _longBreakInitialTimer :: ConfigSetting,
-    _tasksFilePath :: ConfigSetting,
     _startStopSound :: ConfigSetting,
-    _tickingSound :: ConfigSetting
+    _tasksFilePath :: ConfigSetting
   }
   deriving (Show, Eq)
 
@@ -142,7 +139,6 @@ deriveJSON defaultOptions ''ConfigFile
 data ConfigFileOperation
   = AddInitialTimer Timer Int
   | ToggleStartStopSound
-  | CycleTickingSound
 
 data AppState = AppState
   { _timerRunning :: Bool,
@@ -155,7 +151,6 @@ data AppState = AppState
     _taskList :: BL.List Name Task,
     _focus :: BF.FocusRing Name,
     _configList :: BL.List Name ConfigSetting,
-    _initialTimerDialog :: Dialog TimerDialogChoice
+    _initialTimerDialog :: Dialog InitialTimerDialogChoice
   }
-
 makeLenses ''AppState

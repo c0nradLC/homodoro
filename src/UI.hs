@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module UI.UI (uiMain) where
+module UI (uiMain) where
 
 import Brick
   ( App (..),
@@ -34,8 +34,7 @@ import Brick.Widgets.Edit
     renderEditor,
   )
 import qualified Brick.Widgets.List as BL
-import Config (configFileSettings, extractInitialTimerValue, initialTimerSetting, readInitialTimer)
-import qualified Config as CFG (createConfigFileIfNotExists, readConfig)
+import Config (configFileSettings, extractInitialTimerValue, initialTimerSetting, readInitialTimer, createConfigFileIfNotExists, readConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State
@@ -59,7 +58,7 @@ import Resources
     pomodoroTimer,
     shortBreakTimer,
     taskEditor,
-    taskList,
+    taskList
   )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, readTasks)
@@ -79,7 +78,7 @@ import UI.Timer (drawTimers, formatTimer)
 uiMain :: IO ()
 uiMain = do
   eventChan <- newBChan 10
-  CFG.createConfigFileIfNotExists
+  createConfigFileIfNotExists
   _ <- forkIO $ forever $ do
     writeBChan eventChan Tick
     threadDelay 1000000
@@ -92,7 +91,7 @@ createAppState :: IO AppState
 createAppState = do
   createTasksFileIfNotExists
   tasks <- readTasks
-  configFile <- CFG.readConfig
+  configFile <- readConfig
   setPomodoroInitialTimer <- readInitialTimer R.Pomodoro
   setShortBreakInitialTimer <- readInitialTimer R.ShortBreak
   setLongBreakInitialTimer <- readInitialTimer R.LongBreak

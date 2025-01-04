@@ -7,7 +7,6 @@ where
 
 import Brick (EventM)
 import qualified Brick.Focus as BF
-import Config (readTickingSound)
 import qualified Config as CFG
 import Control.Concurrent (forkIO)
 import Control.Lens (Lens', uses, (.=), (^.))
@@ -29,11 +28,6 @@ finishRound timer currentTimer = do
 
 tickTimer :: Maybe Name -> AppState -> EventM Name AppState ()
 tickTimer currentFocus s = do
-  tickSound <- liftIO readTickingSound
-  case tickSound of
-    tick -> do
-      _ <- liftIO $ forkIO $ NT.playAudio tick
-      return ()
   -- TODO move the case below from this method to the EventHandler, or think of a better way of simplyfying this function
   case currentFocus of
     Just (TaskList Pomodoro) -> do

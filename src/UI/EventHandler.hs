@@ -18,7 +18,7 @@ import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty as VE
 import qualified Notify as NT
-import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), Name (Commands, Config, InitialTimerDialog, TaskEdit, TaskList), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerDialogChoice (..), configList, configValue, focus, initialTimerDialog, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning)
+import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), InitialTimerDialogChoice (..), configList, configValue, focus, initialTimerDialog, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning)
 import Task (mkTask, taskExists, updateTaskList)
 import Timer (tickTimer)
 import UI.Config (timerDialog)
@@ -132,9 +132,6 @@ handleEvent ev = do
                 ConfigInitialTimer timer _ -> do
                   initialTimerDialog .= timerDialog (Just 0) timer
                   changeFocus (InitialTimerDialog timer) s
-                ConfigTickingSound _ -> do
-                  updatedConfigSettings <- liftIO $ updateConfig CycleTickingSound
-                  configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList)
                 _ -> return ()
             _ -> BT.zoom configList $ BL.handleListEventVi BL.handleListEvent vev
         Just (InitialTimerDialog timer) -> do
@@ -146,7 +143,7 @@ handleEvent ev = do
               updatedConfigSettings <- liftIO $ updateConfig (AddInitialTimer timer (-60))
               configList .= BL.listReplace (DV.fromList $ configFileSettings updatedConfigSettings) (BL.listSelected $ s ^. configList) (s ^. configList)
             (V.KEnter, []) -> case dialogSelection (s ^. initialTimerDialog) of
-              Just Ok -> changeFocus Config s
+              Just CloseInitialTimerDialog -> changeFocus Config s
               Just ResetTimer -> do
                 cfgInitialTimer <- liftIO $ readInitialTimer timer
                 case timer of

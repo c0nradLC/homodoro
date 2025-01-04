@@ -6,7 +6,6 @@ module Config
     readTasksFilePath,
     readInitialTimer,
     readStartStopSound,
-    readTickingSound,
     updateConfig,
     extractFilePathValue,
     extractInitialTimerValue,
@@ -14,18 +13,19 @@ module Config
     configFileSettings,
     configSettingsValueToText,
     initialTimerSetting,
+    defaultTasksFilePathIO
   )
 where
 
 import qualified Control.Applicative as FP
-import Control.Lens ((%~), (&), (.~))
+import Control.Lens ((%~), (&))
 import Control.Lens.Getter ((^.))
 import Control.Monad (unless)
 import Data.Aeson hiding ((.=))
 import qualified Data.ByteString.Lazy as BSL
 import Data.List (find)
 import qualified Data.Text as T
-import Resources (Audio (..), ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, tickingSound)
+import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import UI.Timer (formatTimer)
@@ -38,9 +38,8 @@ defaultConfig = do
       { _pomodoroInitialTimer = ConfigSetting {_configLabel = "Pomodoro round initial timer", _configValue = ConfigInitialTimer Pomodoro 1500},
         _shortBreakInitialTimer = ConfigSetting {_configLabel = "Short break initial timer", _configValue = ConfigInitialTimer ShortBreak 300},
         _longBreakInitialTimer = ConfigSetting {_configLabel = "Long break initial timer", _configValue = ConfigInitialTimer LongBreak 900},
-        _tasksFilePath = ConfigSetting {_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks"},
         _startStopSound = ConfigSetting {_configLabel = "Start/Stop sound", _configValue = ConfigStartStopSound False},
-        _tickingSound = ConfigSetting {_configLabel = "Timer ticking sound", _configValue = ConfigTickingSound None}
+        _tasksFilePath = ConfigSetting {_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks"}
       }
 
 createConfigFileIfNotExists :: IO ()
@@ -77,17 +76,6 @@ updateConfig ToggleStartStopSound = do
   where
     toggleBool (ConfigStartStopSound b) = ConfigStartStopSound (not b)
     toggleBool val = val
-updateConfig CycleTickingSound = do
-  configFile <- readConfig
-  let currentTickSound = extractTickingSoundValue $ configFile ^. tickingSound
-      updatedConfigFile = configFile & tickingSound . configValue .~ ConfigTickingSound (cycleTick currentTickSound)
-  writeConfig updatedConfigFile
-  return updatedConfigFile
-  where
-    cycleTick currentTick = case currentTick of
-      FastTick -> SlowTick
-      SlowTick -> None
-      _ -> FastTick
 
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
@@ -104,6 +92,11 @@ readTasksFilePath :: IO FilePath
 readTasksFilePath = do
   configFile <- readConfig
   return $ extractFilePathValue $ configFile ^. tasksFilePath
+
+defaultTasksFilePathIO :: IO FilePath
+defaultTasksFilePathIO = do
+  xdgDirectory <- D.getXdgDirectory D.XdgData ""
+  return $ xdgDirectory FP.</> "homodoro" FP.</> "tasks"
 
 readInitialTimer :: Timer -> IO Int
 readInitialTimer timer = do
@@ -127,19 +120,13 @@ readStartStopSound = do
   configFile <- readConfig
   return $ extractStartStopSoundValue $ configFile ^. startStopSound
 
-readTickingSound :: IO Audio
-readTickingSound = do
-  configFile <- readConfig
-  return $ extractTickingSoundValue $ configFile ^. tickingSound
-
 configFileSettings :: ConfigFile -> [ConfigSetting]
 configFileSettings configFile =
   [ configFile ^. pomodoroInitialTimer,
     configFile ^. shortBreakInitialTimer,
     configFile ^. longBreakInitialTimer,
     configFile ^. tasksFilePath,
-    configFile ^. startStopSound,
-    configFile ^. tickingSound
+    configFile ^. startStopSound
   ]
 
 initialTimerSetting :: Timer -> [ConfigSetting] -> Maybe ConfigSetting
@@ -154,7 +141,6 @@ configSettingsValueToText :: ConfigSettingValue -> T.Text
 configSettingsValueToText (ConfigInitialTimer _ i) = T.pack $ formatTimer i
 configSettingsValueToText (ConfigStartStopSound b) = T.pack $ show b
 configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
-configSettingsValueToText (ConfigTickingSound p) = T.pack $ show p
 
 extractInitialTimerValue :: ConfigSetting -> (Timer, Int)
 extractInitialTimerValue (ConfigSetting _ (ConfigInitialTimer t initialTimer)) = (t, initialTimer)
@@ -167,7 +153,3 @@ extractFilePathValue _ = FP.empty
 extractStartStopSoundValue :: ConfigSetting -> Bool
 extractStartStopSoundValue (ConfigSetting _ (ConfigStartStopSound value)) = value
 extractStartStopSoundValue _ = False
-
-extractTickingSoundValue :: ConfigSetting -> Audio
-extractTickingSoundValue (ConfigSetting _ (ConfigTickingSound tick)) = tick
-extractTickingSoundValue _ = None

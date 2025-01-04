@@ -22,7 +22,7 @@ source-repository head
 executable homodoro
   main-is: Main.hs
   other-modules:
-      UI.UI
+      UI
       UI.Attributes
       UI.Timer
       UI.EventHandler

@@ -16,6 +16,7 @@ import Brick (AttrMap, AttrName, attrMap, attrName, on)
 import Brick.Widgets.Dialog (buttonAttr, buttonSelectedAttr)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
+import Brick.Widgets.FileBrowser (fileBrowserSelectedAttr)
 
 attributes :: AttrMap
 attributes =
@@ -31,7 +32,8 @@ attributes =
       (taskPendingWhiteBgLabelAttr, V.red `on` V.white),
       (selectedConfigAttr, V.black `on` V.white),
       (buttonSelectedAttr, V.black `on` V.white),
-      (buttonAttr, V.white `on` V.black)
+      (buttonAttr, V.white `on` V.black),
+      (fileBrowserSelectedAttr, V.black `on` V.white)
     ]
 
 timerAttr :: AttrName

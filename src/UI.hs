@@ -135,9 +135,9 @@ app =
 drawUI :: AppState -> [Widget Name]
 drawUI s =
   case BF.focusGetCurrent (s ^. focus) of
-    fcs@(Just (TaskEdit _)) -> [B.border $ C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s <=> drawCommands fcs]
+    fcs@(Just (TaskEdit _)) -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands fcs]
     Just Commands -> [B.border $ C.center drawCommandsScreen]
-    Just Config -> [B.border $ C.center $ drawConfigList (s ^. configList)]
+    fcs@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands fcs]
     Just (InitialTimerDialog timer) -> do
       let configListL = DV.toList $ BL.listElements (s ^. configList)
           (_, currentInitialTimerValue) =
@@ -190,8 +190,9 @@ drawCommandsScreen =
 drawCommands :: Maybe Name -> Widget Name
 drawCommands currentFocus = do
   case currentFocus of
-    Just (TaskEdit Insert) -> strWrap "ESC: Cancel task creation  Ins: Create task  "
-    Just (TaskEdit Edit) -> strWrap "ESC: Cancel task edition  Ins: Save task  "
+    Just (TaskEdit Insert) -> strWrap "ESC: Cancel task creation  Ins: Create task"
+    Just (TaskEdit Edit) -> strWrap "ESC: Cancel task edition  Ins: Save task"
+    Just Config -> str "ENTER: Select/Toggle setting"
     _ -> emptyWidget
 
 drawTaskEditor :: AppState -> Widget Name

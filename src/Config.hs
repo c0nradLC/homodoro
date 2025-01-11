@@ -132,7 +132,7 @@ configSettingsValueToText (ConfigStartStopSound b) = T.pack $ show b
 configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
 
 extractInitialTimerValue :: Maybe ConfigSetting -> Int
-extractInitialTimerValue (Just(ConfigSetting _ (ConfigInitialTimer _ initialTimer))) = initialTimer
+extractInitialTimerValue (Just (ConfigSetting _ (ConfigInitialTimer _ initialTimer))) = initialTimer
 extractInitialTimerValue _ = 0
 
 extractFilePathValue :: ConfigSetting -> FilePath

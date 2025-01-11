@@ -47,7 +47,6 @@ import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
 
-
 data Timer
     = Pomodoro
     | ShortBreak

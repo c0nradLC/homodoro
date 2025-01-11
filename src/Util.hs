@@ -1,8 +1,9 @@
 module Util (changeFocus) where
-import Resources (Name, AppState, focus)
+
 import Brick (EventM)
 import qualified Brick.Focus as BF
 import Control.Lens
+import Resources (AppState, Name, focus)
 
 changeFocus :: Name -> AppState -> EventM Name AppState ()
 changeFocus nextFocus s = focus .= BF.focusSetCurrent nextFocus (s ^. focus)

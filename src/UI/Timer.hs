@@ -12,12 +12,12 @@ import Brick (Padding (Pad), Widget, padBottom, padLeftRight, padTop, padTopBott
 import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
+import Brick.Widgets.Dialog (Dialog, dialog)
 import Control.Lens ((^.))
-import Resources (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer, timerRunning, InitialTimerDialogChoice (CloseInitialTimerDialog))
+import Data.Maybe (fromMaybe)
+import Resources (AppState, InitialTimerDialogChoice (CloseInitialTimerDialog), Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer, timerRunning)
 import Text.Printf (printf)
 import UI.Attributes (selectedTimerAttr, timerAttr)
-import Brick.Widgets.Dialog (Dialog, dialog)
-import Data.Maybe (fromMaybe)
 
 drawTimers :: AppState -> Widget Name
 drawTimers s =

@@ -116,8 +116,8 @@ drawUI s =
         Just (InitialTimerDialog timer) -> do
             let configListL = DV.toList $ BL.listElements (s ^. configList)
                 currentInitialTimerValue =
-                    extractInitialTimerValue
-                    $ findInitialTimerSetting timer configListL
+                    extractInitialTimerValue $
+                        findInitialTimerSetting timer configListL
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)

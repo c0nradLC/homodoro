@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Task
-  ( createTasksFileIfNotExists,
+module Task (
+    createTasksFileIfNotExists,
     taskExists,
     readTasks,
     mkTask,
     updateTaskList,
-  )
+)
 where
 
 import qualified Config as CFG
@@ -21,40 +21,40 @@ import qualified System.FilePath as FP
 
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
-  filePath <- CFG.readTasksFilePath
-  D.createDirectoryIfMissing True (FP.takeDirectory filePath)
-  fileExists <- D.doesFileExist filePath
-  unless fileExists $ do BSL.writeFile filePath ""
+    filePath <- CFG.readTasksFilePath
+    D.createDirectoryIfMissing True (FP.takeDirectory filePath)
+    fileExists <- D.doesFileExist filePath
+    unless fileExists $ do BSL.writeFile filePath ""
 
 mkTask :: T.Text -> Task
-mkTask txt = Task {_taskContent = txt, _taskCompleted = False}
+mkTask txt = Task{_taskContent = txt, _taskCompleted = False}
 
 updateTaskList :: TaskListUpdate
 updateTaskList cop = do
-  tasks <- readTasks
-  case cop of
-    (AppendTask task) -> writeTasks (task : tasks)
-    (DeleteTask task) -> writeTasks $ filter (/= task) tasks
-    (ChangeTaskCompletion task) -> writeTasks $ over (traversed . filtered (== task)) (taskCompleted %~ not) tasks
-    (EditTask task newContent) -> writeTasks $ over (traversed . filtered (== task)) (taskContent .~ newContent) tasks
+    tasks <- readTasks
+    case cop of
+        (AppendTask task) -> writeTasks (task : tasks)
+        (DeleteTask task) -> writeTasks $ filter (/= task) tasks
+        (ChangeTaskCompletion task) -> writeTasks $ over (traversed . filtered (== task)) (taskCompleted %~ not) tasks
+        (EditTask task newContent) -> writeTasks $ over (traversed . filtered (== task)) (taskContent .~ newContent) tasks
 
 writeTasks :: [Task] -> IO [Task]
 writeTasks tasks = do
-  tasksFilePath <- CFG.readTasksFilePath
-  BSL.writeFile tasksFilePath $ encode tasks
-  return tasks
+    tasksFilePath <- CFG.readTasksFilePath
+    BSL.writeFile tasksFilePath $ encode tasks
+    return tasks
 
 readTasks :: IO [Task]
 readTasks = do
-  tasksFilePath <- CFG.readTasksFilePath
-  tasksFromFile <- BSL.readFile tasksFilePath
-  case decode tasksFromFile of
-    Just task -> do
-      return task
-    Nothing -> return []
+    tasksFilePath <- CFG.readTasksFilePath
+    tasksFromFile <- BSL.readFile tasksFilePath
+    case decode tasksFromFile of
+        Just task -> do
+            return task
+        Nothing -> return []
 
 taskExists :: T.Text -> IO Bool
 taskExists content = do
-  tasks <- readTasks
-  let tasksContents = map (view taskContent) tasks
-  return $ content `elem` tasksContents
+    tasks <- readTasks
+    let tasksContents = map (view taskContent) tasks
+    return $ content `elem` tasksContents

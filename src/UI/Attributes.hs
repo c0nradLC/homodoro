@@ -1,5 +1,5 @@
-module UI.Attributes
-  ( attributes,
+module UI.Attributes (
+    attributes,
     timerAttr,
     taskEditorAttr,
     selectedTaskAttr,
@@ -9,32 +9,32 @@ module UI.Attributes
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
     selectedConfigAttr,
-  )
+)
 where
 
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
 import Brick.Widgets.Dialog (buttonAttr, buttonSelectedAttr)
+import Brick.Widgets.FileBrowser (fileBrowserSelectedAttr)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
-import Brick.Widgets.FileBrowser (fileBrowserSelectedAttr)
 
 attributes :: AttrMap
 attributes =
-  attrMap
-    V.defAttr
-    [ (timerAttr, V.black `on` V.white),
-      (taskEditorAttr, V.black `on` V.white),
-      (selectedTaskAttr, V.black `on` V.white),
-      (selectedTimerAttr, V.black `on` V.white),
-      (taskCompletedLabelAttr, V.defAttr `withForeColor` V.blue),
-      (taskPendingLabelAttr, V.defAttr `withForeColor` V.red),
-      (taskCompletedWhiteBgLabelAttr, V.blue `on` V.white),
-      (taskPendingWhiteBgLabelAttr, V.red `on` V.white),
-      (selectedConfigAttr, V.black `on` V.white),
-      (buttonSelectedAttr, V.black `on` V.white),
-      (buttonAttr, V.white `on` V.black),
-      (fileBrowserSelectedAttr, V.black `on` V.white)
-    ]
+    attrMap
+        V.defAttr
+        [ (timerAttr, V.black `on` V.white)
+        , (taskEditorAttr, V.black `on` V.white)
+        , (selectedTaskAttr, V.black `on` V.white)
+        , (selectedTimerAttr, V.black `on` V.white)
+        , (taskCompletedLabelAttr, V.defAttr `withForeColor` V.blue)
+        , (taskPendingLabelAttr, V.defAttr `withForeColor` V.red)
+        , (taskCompletedWhiteBgLabelAttr, V.blue `on` V.white)
+        , (taskPendingWhiteBgLabelAttr, V.red `on` V.white)
+        , (selectedConfigAttr, V.black `on` V.white)
+        , (buttonSelectedAttr, V.black `on` V.white)
+        , (buttonAttr, V.white `on` V.black)
+        , (fileBrowserSelectedAttr, V.black `on` V.white)
+        ]
 
 timerAttr :: AttrName
 timerAttr = attrName "timerAttr"

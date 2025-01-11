@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Notify
-  ( playAudio,
+module Notify (
+    playAudio,
     alertRoundEnded,
-  )
+)
 where
 
 import Brick (EventM)
@@ -24,13 +24,13 @@ import System.IO.Temp (withSystemTempFile)
 
 alertRoundEnded :: String -> EventM Name AppState ()
 alertRoundEnded msg = liftIO $ do
-  _ <- LN.notify_init "homodoro"
-  notifyInitted <- LN.notify_is_initted
-  when notifyInitted $ do
-    notification <- LN.notify_notification_new "homodoro" msg ""
-    notify_notification_set_timeout notification (Custom 5000)
-    _ <- notify_notification_show notification
-    return ()
+    _ <- LN.notify_init "homodoro"
+    notifyInitted <- LN.notify_is_initted
+    when notifyInitted $ do
+        notification <- LN.notify_notification_new "homodoro" msg ""
+        notify_notification_set_timeout notification (Custom 5000)
+        _ <- notify_notification_show notification
+        return ()
 
 timerEndedAudio :: SB.ByteString
 timerEndedAudio = $(embedFile "resources/timerEnded.mp3")
@@ -43,32 +43,32 @@ stopAudio = $(embedFile "resources/stop_audio.mp3")
 
 playAudio :: Audio -> IO ()
 playAudio audio = do
-  SDL.initialize [SDL.InitAudio]
-  Mix.initialize [Mix.InitMP3]
+    SDL.initialize [SDL.InitAudio]
+    Mix.initialize [Mix.InitMP3]
 
-  case audio of
-    TimerEnded -> openAndPlaySound timerEndedAudio
-    Start -> openAndPlaySound startAudio
-    Stop -> openAndPlaySound stopAudio
-    _ -> return ()
+    case audio of
+        TimerEnded -> loadAndPlaySound timerEndedAudio
+        Start -> loadAndPlaySound startAudio
+        Stop -> loadAndPlaySound stopAudio
+        _ -> return ()
 
-  Mix.closeAudio
-  Mix.quit
+    Mix.closeAudio
+    Mix.quit
 
-openAndPlaySound :: SB.ByteString -> IO ()
-openAndPlaySound soundName = do
-  withSystemTempFile "tempRingtone" $ \tempPath tempHandle -> do
-    SB.hPut tempHandle soundName
-    hClose tempHandle
-    Mix.openAudio def 256
-    audio <- Mix.load tempPath
-    Mix.play audio
-    whileTrueM $ Mix.playing Mix.AllChannels
+loadAndPlaySound :: SB.ByteString -> IO ()
+loadAndPlaySound soundName = do
+    withSystemTempFile "tempRingtone" $ \tempPath tempHandle -> do
+        SB.hPut tempHandle soundName
+        hClose tempHandle
+        Mix.openAudio def 256
+        audio <- Mix.load tempPath
+        Mix.play audio
+        whileTrueM $ Mix.playing Mix.AllChannels
 
-    Mix.haltMusic
-    Mix.free audio
+        Mix.haltMusic
+        Mix.free audio
 
 whileTrueM :: Monad m => m Bool -> m ()
 whileTrueM cond = do
-  loop <- cond
-  when loop $ whileTrueM cond
+    loop <- cond
+    when loop $ whileTrueM cond

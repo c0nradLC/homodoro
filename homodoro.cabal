@@ -27,11 +27,13 @@ executable homodoro
       UI.Timer
       UI.EventHandler
       UI.Config
+      UI.Task
       Task
       Notify
       Resources
       Config
       Timer
+      Util
   hs-source-dirs:
       app
      ,src

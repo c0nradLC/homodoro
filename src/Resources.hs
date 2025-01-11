@@ -1,8 +1,8 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Resources
-  ( Name (..),
+module Resources (
+    Name (..),
     Timer (..),
     TaskAction (..),
     AppState (..),
@@ -35,8 +35,8 @@ module Resources
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
-    initialTimerDialog
-  )
+    initialTimerDialog,
+)
 where
 
 import qualified Brick.Focus as BF
@@ -47,110 +47,109 @@ import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
 
+
 data Timer
-  = Pomodoro
-  | ShortBreak
-  | LongBreak
-  deriving (Show, Eq, Ord)
+    = Pomodoro
+    | ShortBreak
+    | LongBreak
+    deriving (Show, Eq, Ord)
 
 deriveJSON defaultOptions ''Timer
 
 data InitialTimerDialogChoice
-  = CloseInitialTimerDialog
-  | ResetTimer
+    = CloseInitialTimerDialog
 
 data TaskAction
-  = Edit
-  | Insert
-  deriving (Show, Eq, Ord)
+    = Edit
+    | Insert
+    deriving (Show, Eq, Ord)
 
 data Name
-  = TaskEdit TaskAction
-  | TaskList Timer
-  | Commands
-  | Config
-  | InitialTimerDialog Timer
-  deriving (Show, Eq, Ord)
+    = TaskEdit TaskAction
+    | TaskList Timer
+    | Config
+    | InitialTimerDialog Timer
+    deriving (Show, Eq, Ord)
 
 data Tick = Tick
 
 data Audio
-  = TimerEnded
-  | Start
-  | Stop
-  | FastTick
-  | SlowTick
-  | None
-  deriving (Show, Eq)
-
-deriveJSON defaultOptions ''Audio
+    = TimerEnded
+    | FastTick
+    | SlowTick
+    | Start
+    | Stop
+    | None
+    deriving (Show, Eq)
 
 data Task = Task
-  { _taskContent :: T.Text,
-    _taskCompleted :: Bool
-  }
+    { _taskContent :: T.Text
+    , _taskCompleted :: Bool
+    }
 
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
 instance Eq Task where
-  (==) :: Task -> Task -> Bool
-  (Task taskContent1 _) == (Task taskContent2 _) =
-    taskContent1 == taskContent2
+    (==) :: Task -> Task -> Bool
+    (Task taskContent1 _) == (Task taskContent2 _) =
+        taskContent1 == taskContent2
 
 data TaskListOperation
-  = AppendTask Task
-  | DeleteTask Task
-  | EditTask Task T.Text
-  | ChangeTaskCompletion Task
+    = AppendTask Task
+    | DeleteTask Task
+    | EditTask Task T.Text
+    | ChangeTaskCompletion Task
 
 type TaskListUpdate = TaskListOperation -> IO [Task]
 
 data ConfigSettingValue
-  = ConfigInitialTimer Timer Int
-  | ConfigStartStopSound Bool
-  | ConfigTasksFilePath FilePath
-  deriving (Show, Eq)
+    = ConfigInitialTimer Timer Int
+    | ConfigStartStopSound Bool
+    | ConfigTasksFilePath FilePath
+    deriving (Show, Eq)
 
 makeLenses ''ConfigSettingValue
 deriveJSON defaultOptions ''ConfigSettingValue
 
 data ConfigSetting = ConfigSetting
-  { _configLabel :: T.Text,
-    _configValue :: ConfigSettingValue
-  }
-  deriving (Show, Eq)
+    { _configLabel :: T.Text
+    , _configValue :: ConfigSettingValue
+    }
+    deriving (Show, Eq)
 
 makeLenses ''ConfigSetting
 deriveJSON defaultOptions ''ConfigSetting
 
 data ConfigFile = ConfigFile
-  { _pomodoroInitialTimer :: ConfigSetting,
-    _shortBreakInitialTimer :: ConfigSetting,
-    _longBreakInitialTimer :: ConfigSetting,
-    _startStopSound :: ConfigSetting,
-    _tasksFilePath :: ConfigSetting
-  }
-  deriving (Show, Eq)
+    { _pomodoroInitialTimer :: ConfigSetting
+    , _shortBreakInitialTimer :: ConfigSetting
+    , _longBreakInitialTimer :: ConfigSetting
+    , _startStopSound :: ConfigSetting
+    , _tasksFilePath :: ConfigSetting
+    }
+    deriving (Show, Eq)
 
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
 
 data ConfigFileOperation
-  = AddInitialTimer Timer Int
-  | ToggleStartStopSound
+    = AddInitialTimer Timer Int
+    | ToggleStartStopSound
+
+deriveJSON defaultOptions ''Audio
 
 data AppState = AppState
-  { _timerRunning :: Bool,
-    _pomodoroCounter :: Int,
-    _pomodoroCyclesCounter :: Int,
-    _pomodoroTimer :: Int,
-    _shortBreakTimer :: Int,
-    _longBreakTimer :: Int,
-    _taskEditor :: Editor T.Text Name,
-    _taskList :: BL.List Name Task,
-    _focus :: BF.FocusRing Name,
-    _configList :: BL.List Name ConfigSetting,
-    _initialTimerDialog :: Dialog InitialTimerDialogChoice
-  }
+    { _timerRunning :: Bool
+    , _pomodoroCounter :: Int
+    , _pomodoroCyclesCounter :: Int
+    , _pomodoroTimer :: Int
+    , _shortBreakTimer :: Int
+    , _longBreakTimer :: Int
+    , _taskEditor :: Editor T.Text Name
+    , _taskList :: BL.List Name Task
+    , _focus :: BF.FocusRing Name
+    , _configList :: BL.List Name ConfigSetting
+    , _initialTimerDialog :: Dialog InitialTimerDialogChoice
+    }
 makeLenses ''AppState

@@ -19,11 +19,11 @@ import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import qualified Graphics.Vty as VE
 import qualified Notify as NT
-import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), configList, configValue, focus, initialTimerDialog, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning)
+import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), configList, configValue, focus, initialTimerDialog, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, pomodoroCounter, pomodoroCyclesCounter)
 import Task (mkTask, taskExists, updateTaskList)
-import Timer (tickTimer)
 import UI.Timer (timerDialog)
 import Util (changeFocus)
+import Timer
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -32,7 +32,32 @@ handleEvent ev = do
     case ev of
         (AppEvent Tick) -> do
             when (s ^. timerRunning) $ do
-                tickTimer currentFocus s
+                case currentFocus of
+                    Just (TaskList Pomodoro) -> do
+                        tickTimer pomodoroTimer (s ^. pomodoroTimer)
+                        when (s ^. pomodoroTimer == 0) $ do
+                            stopTimer
+                            alertTimerEnded "Pomodoro round ended!"
+                            finishRound pomodoroTimer Pomodoro
+                            pomodoroCounter .= (s ^. pomodoroCounter) + 1
+                            increasePomodoroCycleCounter s
+                    Just (TaskList ShortBreak) -> do
+                        tickTimer shortBreakTimer (s ^. shortBreakTimer)
+                        when (s ^. shortBreakTimer == 0) $ do
+                            stopTimer
+                            alertTimerEnded "Short break ended!"
+                            finishRound shortBreakTimer ShortBreak
+                            changeFocus (TaskList Pomodoro) s
+                            focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
+                    Just (TaskList LongBreak) -> do
+                        tickTimer longBreakTimer (s ^. longBreakTimer)
+                        when (s ^. longBreakTimer == 0) $ do
+                            stopTimer
+                            alertTimerEnded "Long break ended!"
+                            finishRound longBreakTimer LongBreak
+                            pomodoroCyclesCounter .= 0
+                            focus .= BF.focusSetCurrent (TaskList Pomodoro) (s ^. focus)
+                    _ -> return ()
         (VtyEvent vev@(VE.EvKey k ms)) -> do
             let selectedListTask = BL.listSelectedElement (s ^. taskList)
                 taskEditorContent = Txt.strip $ Txt.unlines $ getEditContents (s ^. taskEditor)

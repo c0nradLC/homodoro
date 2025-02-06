@@ -35,7 +35,10 @@ module Resources (
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
-    initialTimerDialog,
+    timerNotificationAlert,
+    timerSoundAlert,
+    initialTimerConfigDialog,
+    tasksFilePathBrowser
 )
 where
 
@@ -46,6 +49,7 @@ import qualified Brick.Widgets.List as BL
 import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
+import Brick.Widgets.FileBrowser (FileBrowser)
 
 data Timer
     = Pomodoro
@@ -68,6 +72,7 @@ data Name
     | TaskList Timer
     | Config
     | InitialTimerDialog Timer
+    | TasksFilePathBrowser
     deriving (Show, Eq, Ord)
 
 data Tick = Tick
@@ -104,8 +109,10 @@ type TaskListUpdate = TaskListOperation -> IO [Task]
 
 data ConfigSettingValue
     = ConfigInitialTimer Timer Int
-    | ConfigStartStopSound Bool
+    | ConfigTimerStartStopSound Bool
     | ConfigTasksFilePath FilePath
+    | ConfigTimerNotificationAlert Bool
+    | ConfigTimerSoundAlert Bool
     deriving (Show, Eq)
 
 makeLenses ''ConfigSettingValue
@@ -126,15 +133,19 @@ data ConfigFile = ConfigFile
     , _longBreakInitialTimer :: ConfigSetting
     , _startStopSound :: ConfigSetting
     , _tasksFilePath :: ConfigSetting
+    , _timerNotificationAlert :: ConfigSetting
+    , _timerSoundAlert :: ConfigSetting
     }
     deriving (Show, Eq)
-
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
 
 data ConfigFileOperation
     = AddInitialTimer Timer Int
     | ToggleStartStopSound
+    | SetTasksFilePath FilePath
+    | ToggleTimerNotificationAlert
+    | ToggleTimerSoundAlert
 
 deriveJSON defaultOptions ''Audio
 
@@ -149,6 +160,7 @@ data AppState = AppState
     , _taskList :: BL.List Name Task
     , _focus :: BF.FocusRing Name
     , _configList :: BL.List Name ConfigSetting
-    , _initialTimerDialog :: Dialog InitialTimerDialogChoice
+    , _initialTimerConfigDialog :: Dialog InitialTimerDialogChoice
+    , _tasksFilePathBrowser :: FileBrowser Name
     }
 makeLenses ''AppState

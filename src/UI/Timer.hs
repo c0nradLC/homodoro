@@ -2,20 +2,16 @@
 
 module UI.Timer (
     drawTimers,
-    formatTimer,
-    timerDialog,
-    drawInitialTimerDialog,
+    formatTimer
 )
 where
 
-import Brick (Padding (Pad), Widget, padBottom, padLeftRight, padTop, padTopBottom, str, txt, vBox, withAttr, (<+>), (<=>))
+import Brick (Widget, padLeftRight, padTopBottom, str, withAttr, (<+>), (<=>))
 import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
-import Brick.Widgets.Dialog (Dialog, dialog)
 import Control.Lens ((^.))
-import Data.Maybe (fromMaybe)
-import Resources (AppState, InitialTimerDialogChoice (CloseInitialTimerDialog), Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer, timerRunning)
+import Resources (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer, timerRunning)
 import Text.Printf (printf)
 import UI.Attributes (selectedTimerAttr, timerAttr)
 
@@ -83,24 +79,3 @@ formatTimer timer =
 formatPomodoroCounter :: Int -> String
 formatPomodoroCounter =
     printf "Pomodoros: %01d"
-
-timerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice
-timerDialog selectedButtonIndex timer =
-    let btnIdx = fromMaybe 0 selectedButtonIndex
-     in dialog title (Just (btnIdx, options)) 50
-  where
-    options = [("Close", CloseInitialTimerDialog)]
-    title = case timer of
-        Pomodoro -> Just "Set pomodoro initial timer"
-        ShortBreak -> Just "Set short break initial timer"
-        LongBreak -> Just "Set long break initial timer"
-
-drawInitialTimerDialog :: Int -> Widget Name
-drawInitialTimerDialog currentInitialTimer =
-    vBox
-        [ padTop (Pad 1) $
-            C.hCenter (txt "Initial timer")
-                <=> C.hCenter (withAttr timerAttr (padLeftRight 1 $ str $ formatTimer currentInitialTimer))
-        , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow]   - Increase by 1min"
-        , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"
-        ]

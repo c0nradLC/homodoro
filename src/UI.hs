@@ -22,9 +22,9 @@ import Brick.Widgets.Edit (
     editor,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configFileSettings, createConfigFileIfNotExists, extractInitialTimerValue, findInitialTimerSetting, readConfig, readInitialTimer)
+import Config (configFileSettings, createConfigFileIfNotExists, findInitialTimerSetting, readConfig, readInitialTimer, readTasksFilePath, configIntValue)
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Lens ((^.))
+import Control.Lens ((^.)) 
 import Control.Monad.State (
     forever,
     void,
@@ -39,18 +39,19 @@ import Resources (
     Timer (LongBreak, Pomodoro, ShortBreak),
     configList,
     focus,
-    initialTimerDialog,
-    taskList,
+    initialTimerConfigDialog,
+    taskList, tasksFilePathBrowser,
  )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, readTasks)
 import UI.Attributes (
-    attributes,
+    attributes
  )
-import UI.Config (drawConfigList)
+import UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog)
 import UI.EventHandler (handleEvent)
 import UI.Task
-import UI.Timer (drawInitialTimerDialog, drawTimers, timerDialog)
+import UI.Timer (drawTimers)
+import Brick.Widgets.FileBrowser
 
 uiMain :: IO ()
 uiMain = do
@@ -72,6 +73,8 @@ createAppState = do
     setPomodoroInitialTimer <- readInitialTimer R.Pomodoro
     setShortBreakInitialTimer <- readInitialTimer R.ShortBreak
     setLongBreakInitialTimer <- readInitialTimer R.LongBreak
+    tasksFilePath <- readTasksFilePath
+    initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just tasksFilePath
     return
         AppState
             { _timerRunning = False
@@ -92,10 +95,12 @@ createAppState = do
                     , InitialTimerDialog Pomodoro
                     , InitialTimerDialog ShortBreak
                     , InitialTimerDialog LongBreak
+                    , TasksFilePathBrowser
                     ]
             , _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
             , _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1
-            , _initialTimerDialog = timerDialog (Just 0) Pomodoro
+            , _initialTimerConfigDialog = initialTimerDialog (Just 0) Pomodoro
+            , _tasksFilePathBrowser = initialTasksFilePathBrowser
             }
 
 app :: App AppState Tick Name
@@ -111,32 +116,41 @@ app =
 drawUI :: AppState -> [Widget Name]
 drawUI s =
     case BF.focusGetCurrent (s ^. focus) of
-        fcs@(Just (TaskEdit _)) -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands fcs]
-        fcs@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands fcs]
-        Just (InitialTimerDialog timer) -> do
+        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
+        currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
+        currentFocus@(Just (InitialTimerDialog timer)) -> do
             let configListL = DV.toList $ BL.listElements (s ^. configList)
                 currentInitialTimerValue =
-                    extractInitialTimerValue $
-                        findInitialTimerSetting timer configListL
+                    configIntValue $ findInitialTimerSetting timer configListL
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
                             <=> renderDialog
-                                (s ^. initialTimerDialog)
+                                (s ^. initialTimerConfigDialog)
                                 (drawInitialTimerDialog currentInitialTimerValue)
                             <=> fill ' '
+                            <=> drawCommands currentFocus
                 ]
-        fcs -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands fcs]
-
-drawCommands :: Maybe Name -> Widget Name
-drawCommands currentFocus = do
-    case currentFocus of
-        Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [Ins]: create task"
-        Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [Ins]: save task"
-        Just (TaskList _) ->
-            strWrap
-                "[Q]: quit, [S]: Start/Stop, [R]: reset, [Shift + Tab]: next timer, \
-                \[T]: add task, [E]: edit task, [Ctrl + C]: toggle task status, \
-                \[P]: config menu"
-        Just Config -> str "[ESC]: return, [ENTER]: select/Toggle setting"
-        _ -> emptyWidget
+        currentFocus@(Just TasksFilePathBrowser) -> do
+            [ B.border
+                    (C.center $
+                        drawConfigList (s ^. configList)
+                            <=> B.border (renderFileBrowser True (s ^. tasksFilePathBrowser))
+                            <=> drawCommands currentFocus)
+                ]
+        currentFocus -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
+    where
+        drawCommands currentFocus =
+            case currentFocus of
+                Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [Ins]: create task"
+                Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [Ins]: save task"
+                Just (TaskList _) ->
+                    strWrap
+                        "[Q]: quit, [S]: Start/Stop, [R]: reset, [Shift + Tab]: next timer, \
+                        \[T]: add task, [E]: edit task, [Ctrl + C]: toggle task status, \
+                        \[P]: config menu"
+                Just Config -> str "[ESC|Q]: return, [ENTER]: select/toggle setting"
+                Just TasksFilePathBrowser ->
+                    strWrap
+                    "[ESC|Q]: close, [ENTER]: select entry, [/]: search"
+                _ -> emptyWidget

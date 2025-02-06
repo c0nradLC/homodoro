@@ -32,7 +32,6 @@ executable homodoro
       Notify
       Resources
       Config
-      Timer
       Util
   hs-source-dirs:
       app

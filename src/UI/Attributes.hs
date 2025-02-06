@@ -14,9 +14,10 @@ where
 
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
 import Brick.Widgets.Dialog (buttonAttr, buttonSelectedAttr)
-import Brick.Widgets.FileBrowser (fileBrowserSelectedAttr)
+import Brick.Widgets.FileBrowser (fileBrowserCurrentDirectoryAttr, fileBrowserSelectionInfoAttr, fileBrowserDirectoryAttr, fileBrowserRegularFileAttr)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
+import Brick.Widgets.List (listSelectedAttr)
 
 attributes :: AttrMap
 attributes =
@@ -33,7 +34,10 @@ attributes =
         , (selectedConfigAttr, V.black `on` V.white)
         , (buttonSelectedAttr, V.black `on` V.white)
         , (buttonAttr, V.white `on` V.black)
-        , (fileBrowserSelectedAttr, V.black `on` V.white)
+        , (listSelectedAttr, V.black `on` V.white)
+        , (fileBrowserCurrentDirectoryAttr, V.defAttr `withForeColor` V.green)
+        , (fileBrowserSelectionInfoAttr, V.defAttr `withForeColor` V.green)
+        , (fileBrowserRegularFileAttr, V.defAttr `withForeColor` V.cyan)
         ]
 
 timerAttr :: AttrName

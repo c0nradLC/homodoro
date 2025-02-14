@@ -71,7 +71,6 @@ handleEvent ev = do
                 Just (TaskEdit action) -> do
                     case (k, ms) of
                         (V.KIns, []) -> saveTask taskEditorContent selectedTask action s
-                        (V.KEnter, [V.MCtrl]) -> saveTask taskEditorContent selectedTask action s
                         (V.KEsc, []) -> do
                             taskEditor .= editor (TaskEdit Insert) (Just 5) ""
                             changeFocus (TaskList Pomodoro) s

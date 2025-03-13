@@ -16,6 +16,7 @@ module Resources (
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
+    SoundVolumeDialogChoice(..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -38,7 +39,10 @@ module Resources (
     timerNotificationAlert,
     timerSoundAlert,
     initialTimerConfigDialog,
-    tasksFilePathBrowser
+    tasksFilePathBrowser,
+    soundVolume,
+    currentSoundVolume,
+    soundVolumeConfigDialog
 )
 where
 
@@ -62,6 +66,10 @@ deriveJSON defaultOptions ''Timer
 data InitialTimerDialogChoice
     = CloseInitialTimerDialog
 
+data SoundVolumeDialogChoice
+    = PlayTestAudio
+    | CloseSoundVolumeDialog
+
 data TaskAction
     = Edit
     | Insert
@@ -73,6 +81,7 @@ data Name
     | Config
     | InitialTimerDialog Timer
     | TasksFilePathBrowser
+    | SoundVolumeDialog
     deriving (Show, Eq, Ord)
 
 data Tick = Tick
@@ -113,6 +122,7 @@ data ConfigSettingValue
     | ConfigTasksFilePath FilePath
     | ConfigTimerNotificationAlert Bool
     | ConfigTimerSoundAlert Bool
+    | ConfigSoundVolume Int
     deriving (Show, Eq)
 
 makeLenses ''ConfigSettingValue
@@ -135,6 +145,7 @@ data ConfigFile = ConfigFile
     , _tasksFilePath :: ConfigSetting
     , _timerNotificationAlert :: ConfigSetting
     , _timerSoundAlert :: ConfigSetting
+    , _soundVolume :: ConfigSetting
     }
     deriving (Show, Eq)
 makeLenses ''ConfigFile
@@ -146,6 +157,7 @@ data ConfigFileOperation
     | SetTasksFilePath FilePath
     | ToggleTimerNotificationAlert
     | ToggleTimerSoundAlert
+    | AddSoundVolume Int
 
 deriveJSON defaultOptions ''Audio
 
@@ -162,5 +174,7 @@ data AppState = AppState
     , _configList :: BL.List Name ConfigSetting
     , _initialTimerConfigDialog :: Dialog InitialTimerDialogChoice
     , _tasksFilePathBrowser :: FileBrowser Name
+    , _currentSoundVolume :: Int
+    , _soundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     }
 makeLenses ''AppState

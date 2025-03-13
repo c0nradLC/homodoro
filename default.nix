@@ -13,4 +13,5 @@ let
 in
 {
   homodoro = pkgs.haskellPackages.callPackage ./homodoro.nix { };
+  pkgs = pkgs;
 }

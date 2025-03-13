@@ -3,14 +3,14 @@
 
 module Notify (
     playAudio,
-    alertRoundEnded,
+    alertRoundEnded
 )
 where
 
 import Brick (EventM)
 import Control.Monad (when)
 import Control.Monad.Cont (MonadIO (liftIO))
-import qualified Data.ByteString as SB (ByteString, hPut)
+import qualified Data.ByteString as SB (ByteString)
 import Data.Default.Class
 import Data.FileEmbed (embedFile)
 import qualified Libnotify.C.Notify as LN
@@ -19,8 +19,6 @@ import qualified Libnotify.C.NotifyNotification as LN
 import Resources (AppState, Audio (..), Name)
 import qualified SDL
 import qualified SDL.Mixer as Mix
-import System.IO (hClose)
-import System.IO.Temp (withSystemTempFile)
 
 alertRoundEnded :: String -> EventM Name AppState ()
 alertRoundEnded msg = liftIO $ do
@@ -33,35 +31,33 @@ alertRoundEnded msg = liftIO $ do
         return ()
 
 timerEndedAudio :: SB.ByteString
-timerEndedAudio = $(embedFile "resources/timerEnded.mp3")
+timerEndedAudio = $(embedFile "audio/timerEnded.mp3")
 
 startAudio :: SB.ByteString
-startAudio = $(embedFile "resources/start_audio.mp3")
+startAudio = $(embedFile "audio/start_audio.mp3")
 
 stopAudio :: SB.ByteString
-stopAudio = $(embedFile "resources/stop_audio.mp3")
+stopAudio = $(embedFile "audio/stop_audio.mp3")
 
-playAudio :: Audio -> IO ()
-playAudio audio = do
+playAudio :: Audio -> Int -> IO ()
+playAudio audio vol = do
     SDL.initialize [SDL.InitAudio]
     Mix.initialize [Mix.InitMP3]
 
     case audio of
-        TimerEnded -> loadAndPlaySound timerEndedAudio
-        Start -> loadAndPlaySound startAudio
-        Stop -> loadAndPlaySound stopAudio
+        TimerEnded -> loadAndPlaySound timerEndedAudio vol
+        Start -> loadAndPlaySound startAudio vol
+        Stop -> loadAndPlaySound stopAudio vol
         _ -> return ()
 
     Mix.closeAudio
     Mix.quit
 
-loadAndPlaySound :: SB.ByteString -> IO ()
-loadAndPlaySound soundName = do
-    withSystemTempFile "tempRingtone" $ \tempPath tempHandle -> do
-        SB.hPut tempHandle soundName
-        hClose tempHandle
+loadAndPlaySound :: SB.ByteString -> Int -> IO ()
+loadAndPlaySound soundName vol = do
         Mix.openAudio def 256
-        audio <- Mix.load tempPath
+        audio <- Mix.decode soundName
+        Mix.setVolume vol audio
         Mix.play audio
         whileTrueM $ Mix.playing Mix.AllChannels
 

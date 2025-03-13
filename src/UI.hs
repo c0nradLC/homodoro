@@ -22,7 +22,7 @@ import Brick.Widgets.Edit (
     editor,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configFileSettings, createConfigFileIfNotExists, findInitialTimerSetting, readConfig, readInitialTimer, readTasksFilePath, configIntValue)
+import Config (configFileSettings, createConfigFileIfNotExists, readConfig, readInitialTimer, readTasksFilePath, maybeConfigIntValue, readSoundVolume, findConfigSetting, showBool, maybeConfigBoolValue, soundVolumePercentage)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.)) 
 import Control.Monad.State (
@@ -40,14 +40,14 @@ import Resources (
     configList,
     focus,
     initialTimerConfigDialog,
-    taskList, tasksFilePathBrowser,
+    taskList, tasksFilePathBrowser, currentSoundVolume, soundVolumeConfigDialog, ConfigSettingValue (..),
  )
 import qualified Resources as R
 import Task (createTasksFileIfNotExists, readTasks)
 import UI.Attributes (
     attributes
  )
-import UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog)
+import UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog, soundVolumeDialog, drawSoundVolumeDialog)
 import UI.EventHandler (handleEvent)
 import UI.Task
 import UI.Timer (drawTimers)
@@ -75,6 +75,7 @@ createAppState = do
     setLongBreakInitialTimer <- readInitialTimer R.LongBreak
     tasksFilePath <- readTasksFilePath
     initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just tasksFilePath
+    setSoundVolume <- readSoundVolume
     return
         AppState
             { _timerRunning = False
@@ -96,11 +97,14 @@ createAppState = do
                     , InitialTimerDialog ShortBreak
                     , InitialTimerDialog LongBreak
                     , TasksFilePathBrowser
+                    , SoundVolumeDialog
                     ]
             , _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
             , _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1
             , _initialTimerConfigDialog = initialTimerDialog (Just 0) Pomodoro
             , _tasksFilePathBrowser = initialTasksFilePathBrowser
+            , _currentSoundVolume = setSoundVolume
+            , _soundVolumeConfigDialog = soundVolumeDialog $ Just setSoundVolume
             }
 
 app :: App AppState Tick Name
@@ -116,30 +120,43 @@ app =
 drawUI :: AppState -> [Widget Name]
 drawUI s =
     case BF.focusGetCurrent (s ^. focus) of
-        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
+        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader (s ^. currentSoundVolume)  <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
         currentFocus@(Just (InitialTimerDialog timer)) -> do
-            let configListL = DV.toList $ BL.listElements (s ^. configList)
-                currentInitialTimerValue =
-                    configIntValue $ findInitialTimerSetting timer configListL
+            let currentInitialTimerValue =
+                    maybeConfigIntValue $ findConfigSetting (ConfigInitialTimer timer 0) configListL
             [ B.border $
                     C.center $
-                        drawConfigList (s ^. configList)
+                            drawConfigList (s ^. configList)
                             <=> renderDialog
                                 (s ^. initialTimerConfigDialog)
                                 (drawInitialTimerDialog currentInitialTimerValue)
                             <=> fill ' '
                             <=> drawCommands currentFocus
                 ]
+        currentFocus@(Just SoundVolumeDialog) -> do
+            let currentSoundVolumeConfig =
+                    maybeConfigIntValue $ findConfigSetting (ConfigSoundVolume 0) configListL
+            [ B.border $
+                    C.center $
+                            drawConfigList (s ^. configList)
+                            <=> renderDialog
+                                (s ^. soundVolumeConfigDialog)
+                                (drawSoundVolumeDialog currentSoundVolumeConfig)
+                            <=> fill ' '
+                            <=> drawCommands currentFocus
+                ]
         currentFocus@(Just TasksFilePathBrowser) -> do
             [ B.border
                     (C.center $
-                        drawConfigList (s ^. configList)
+                            drawConfigList (s ^. configList)
                             <=> B.border (renderFileBrowser True (s ^. tasksFilePathBrowser))
                             <=> drawCommands currentFocus)
                 ]
-        currentFocus -> [B.border (C.center $ drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
+        currentFocus -> do 
+            [B.border (C.center $ drawHeader (s ^. currentSoundVolume)  <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
     where
+        configListL = DV.toList $ BL.listElements (s ^. configList)
         drawCommands currentFocus =
             case currentFocus of
                 Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [Ins]: create task"
@@ -154,3 +171,10 @@ drawUI s =
                     strWrap
                     "[ESC|Q]: close, [ENTER]: select entry, [/]: search"
                 _ -> emptyWidget
+        drawHeader vol = do
+            let popupEnabled = maybeConfigBoolValue $ findConfigSetting (ConfigTimerNotificationAlert False) configListL
+                soundAlertEnabled = maybeConfigBoolValue $ findConfigSetting (ConfigTimerSoundAlert False) configListL
+                in
+                str ("Vol: " ++ soundVolumePercentage vol)
+                <=> str ("Timer sound: " ++ showBool soundAlertEnabled)
+                <=> str ("Timer notification: " ++ showBool popupEnabled)

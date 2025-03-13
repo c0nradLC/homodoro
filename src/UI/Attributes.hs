@@ -9,12 +9,13 @@ module UI.Attributes (
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
     selectedConfigAttr,
+    blackOnWhiteAttr
 )
 where
 
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
 import Brick.Widgets.Dialog (buttonAttr, buttonSelectedAttr)
-import Brick.Widgets.FileBrowser (fileBrowserCurrentDirectoryAttr, fileBrowserSelectionInfoAttr, fileBrowserDirectoryAttr, fileBrowserRegularFileAttr)
+import Brick.Widgets.FileBrowser (fileBrowserCurrentDirectoryAttr, fileBrowserSelectionInfoAttr, fileBrowserRegularFileAttr)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
 import Brick.Widgets.List (listSelectedAttr)
@@ -38,6 +39,7 @@ attributes =
         , (fileBrowserCurrentDirectoryAttr, V.defAttr `withForeColor` V.green)
         , (fileBrowserSelectionInfoAttr, V.defAttr `withForeColor` V.green)
         , (fileBrowserRegularFileAttr, V.defAttr `withForeColor` V.cyan)
+        , (blackOnWhiteAttr, V.black `on` V.white)
         ]
 
 timerAttr :: AttrName
@@ -66,3 +68,6 @@ taskPendingWhiteBgLabelAttr = attrName "taskPendingWhiteBgLabelAttr"
 
 selectedConfigAttr :: AttrName
 selectedConfigAttr = attrName "selectedConfigAttr"
+
+blackOnWhiteAttr :: AttrName
+blackOnWhiteAttr = attrName "blackOnWhiteAttr"

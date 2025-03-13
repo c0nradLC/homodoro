@@ -1,18 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog) where
+module UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog, soundVolumeDialog, drawSoundVolumeDialog) where
 
 import Brick (Widget, hBox, padLeftRight, txt, vLimit, withAttr, vBox, padTop, Padding (..), (<=>), padBottom, str)
 import Brick.Widgets.Core (fill)
 import qualified Brick.Widgets.List as BL
-import Config (configSettingsValueToText)
+import Config (configSettingsValueToText, soundVolumePercentage)
 import Control.Lens ((^.))
-import Resources (ConfigSetting, Name, configLabel, configValue, Timer (..), InitialTimerDialogChoice (CloseInitialTimerDialog))
-import UI.Attributes (selectedConfigAttr, timerAttr)
+import Resources (ConfigSetting, Name, configLabel, configValue, Timer (..), InitialTimerDialogChoice (CloseInitialTimerDialog), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio))
+import UI.Attributes (selectedConfigAttr, timerAttr, blackOnWhiteAttr)
 import Brick.Widgets.Dialog (Dialog, dialog)
 import qualified Brick.Widgets.Center as C
 import UI.Timer (formatTimer)
-import Data.Maybe
 
 drawConfigList :: BL.List Name ConfigSetting -> Widget Name
 drawConfigList cfg = do
@@ -34,9 +33,7 @@ drawConfig selected cfg = do
                     ]
 
 initialTimerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice
-initialTimerDialog selectedButtonIndex timer =
-    let btnIdx = fromMaybe 0 selectedButtonIndex
-     in dialog title (Just (btnIdx, options)) 50
+initialTimerDialog _ timer = dialog title (Just (0, options)) 50
   where
     options = [("Close", CloseInitialTimerDialog)]
     title = case timer of
@@ -51,5 +48,21 @@ drawInitialTimerDialog currentInitialTimer =
             C.hCenter (txt "Initial timer")
                 <=> C.hCenter (withAttr timerAttr (padLeftRight 1 $ str $ formatTimer currentInitialTimer))
         , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow]   - Increase by 1min"
-        , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min"
+        , C.hCenter (padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min")
+        ]
+
+soundVolumeDialog :: Maybe Int -> Dialog SoundVolumeDialogChoice
+soundVolumeDialog _ = dialog title (Just (0, options)) 50
+    where
+      options = [("Play test audio", PlayTestAudio), ("Close", CloseSoundVolumeDialog)]
+      title = Just "Sound volume"
+
+drawSoundVolumeDialog :: Int -> Widget Name
+drawSoundVolumeDialog vol =
+    vBox
+        [ padTop (Pad 1) $
+            C.hCenter (txt "Current sound volume")
+                <=> C.hCenter (withAttr blackOnWhiteAttr (padLeftRight 1 $ str $ soundVolumePercentage vol))
+        , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow]   - Increase by 5"
+        , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 5"
         ]

@@ -3,7 +3,7 @@
 
 module Notify (
     playAudio,
-    alertRoundEnded
+    alertRoundEnded,
 )
 where
 
@@ -11,7 +11,7 @@ import Brick (EventM)
 import Control.Monad (when)
 import Control.Monad.Cont (MonadIO (liftIO))
 import qualified Data.ByteString as SB (ByteString)
-import Data.Default.Class
+import Data.Default.Class (Default (def))
 import Data.FileEmbed (embedFile)
 import qualified Libnotify.C.Notify as LN
 import Libnotify.C.NotifyNotification (Timeout (..), notify_notification_set_timeout, notify_notification_show)
@@ -25,9 +25,9 @@ alertRoundEnded msg = liftIO $ do
     _ <- LN.notify_init "homodoro"
     notifyInitted <- LN.notify_is_initted
     when notifyInitted $ do
-        notification <- LN.notify_notification_new "homodoro" msg ""
-        notify_notification_set_timeout notification (Custom 5000)
-        _ <- notify_notification_show notification
+        popup <- LN.notify_notification_new "homodoro" msg ""
+        notify_notification_set_timeout popup (Custom 5000)
+        _ <- notify_notification_show popup
         return ()
 
 timerEndedAudio :: SB.ByteString
@@ -39,12 +39,16 @@ startAudio = $(embedFile "audio/start_audio.mp3")
 stopAudio :: SB.ByteString
 stopAudio = $(embedFile "audio/stop_audio.mp3")
 
+timerTickAudio :: SB.ByteString
+timerTickAudio = $(embedFile "audio/timerTick.mp3")
+
 playAudio :: Audio -> Int -> IO ()
 playAudio audio vol = do
     SDL.initialize [SDL.InitAudio]
     Mix.initialize [Mix.InitMP3]
 
     case audio of
+        TimerTick -> loadAndPlaySound timerTickAudio vol
         TimerEnded -> loadAndPlaySound timerEndedAudio vol
         Start -> loadAndPlaySound startAudio vol
         Stop -> loadAndPlaySound stopAudio vol
@@ -55,14 +59,14 @@ playAudio audio vol = do
 
 loadAndPlaySound :: SB.ByteString -> Int -> IO ()
 loadAndPlaySound soundName vol = do
-        Mix.openAudio def 256
-        audio <- Mix.decode soundName
-        Mix.setVolume vol audio
-        Mix.play audio
-        whileTrueM $ Mix.playing Mix.AllChannels
+    Mix.openAudio def 256
+    audio <- Mix.decode soundName
+    Mix.setVolume vol audio
+    Mix.play audio
+    whileTrueM $ Mix.playing Mix.AllChannels
 
-        Mix.haltMusic
-        Mix.free audio
+    Mix.haltMusic
+    Mix.free audio
 
 whileTrueM :: Monad m => m Bool -> m ()
 whileTrueM cond = do

@@ -1,4 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Resources (
@@ -16,7 +17,7 @@ module Resources (
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
-    SoundVolumeDialogChoice(..),
+    SoundVolumeDialogChoice (..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -36,24 +37,26 @@ module Resources (
     longBreakInitialTimer,
     tasksFilePath,
     startStopSound,
-    timerNotificationAlert,
-    timerSoundAlert,
+    timerPopupAlert,
     initialTimerConfigDialog,
     tasksFilePathBrowser,
-    soundVolume,
-    currentSoundVolume,
-    soundVolumeConfigDialog
+    timerAlertSoundVolume,
+    currentAlertSoundVolume,
+    alertSoundVolumeConfigDialog,
+    currentTimerTickSoundVolume,
+    timerTickSoundVolume,
+    timerTickSoundVolumeConfigDialog,
 )
 where
 
 import qualified Brick.Focus as BF
 import Brick.Widgets.Dialog (Dialog)
 import Brick.Widgets.Edit (Editor)
+import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
 import Control.Lens
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import qualified Data.Text as T
-import Brick.Widgets.FileBrowser (FileBrowser)
 
 data Timer
     = Pomodoro
@@ -81,15 +84,15 @@ data Name
     | Config
     | InitialTimerDialog Timer
     | TasksFilePathBrowser
-    | SoundVolumeDialog
+    | TimerAlertSoundVolumeDialog
+    | TimerTickSoundVolumeDialog
     deriving (Show, Eq, Ord)
 
 data Tick = Tick
 
 data Audio
     = TimerEnded
-    | FastTick
-    | SlowTick
+    | TimerTick
     | Start
     | Stop
     | None
@@ -120,9 +123,9 @@ data ConfigSettingValue
     = ConfigInitialTimer Timer Int
     | ConfigTimerStartStopSound Bool
     | ConfigTasksFilePath FilePath
-    | ConfigTimerNotificationAlert Bool
-    | ConfigTimerSoundAlert Bool
-    | ConfigSoundVolume Int
+    | ConfigTimerPopupAlert Bool
+    | ConfigTimerAlertSoundVolume Int
+    | ConfigTimerTickSoundVolume Int
     deriving (Show, Eq)
 
 makeLenses ''ConfigSettingValue
@@ -143,9 +146,9 @@ data ConfigFile = ConfigFile
     , _longBreakInitialTimer :: ConfigSetting
     , _startStopSound :: ConfigSetting
     , _tasksFilePath :: ConfigSetting
-    , _timerNotificationAlert :: ConfigSetting
-    , _timerSoundAlert :: ConfigSetting
-    , _soundVolume :: ConfigSetting
+    , _timerPopupAlert :: ConfigSetting
+    , _timerAlertSoundVolume :: ConfigSetting
+    , _timerTickSoundVolume :: ConfigSetting
     }
     deriving (Show, Eq)
 makeLenses ''ConfigFile
@@ -155,9 +158,8 @@ data ConfigFileOperation
     = AddInitialTimer Timer Int
     | ToggleStartStopSound
     | SetTasksFilePath FilePath
-    | ToggleTimerNotificationAlert
-    | ToggleTimerSoundAlert
-    | AddSoundVolume Int
+    | ToggleTimerPopupAlert
+    | AddSoundVolume (Lens' ConfigFile ConfigSetting) Int
 
 deriveJSON defaultOptions ''Audio
 
@@ -174,7 +176,9 @@ data AppState = AppState
     , _configList :: BL.List Name ConfigSetting
     , _initialTimerConfigDialog :: Dialog InitialTimerDialogChoice
     , _tasksFilePathBrowser :: FileBrowser Name
-    , _currentSoundVolume :: Int
-    , _soundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
+    , _currentAlertSoundVolume :: Int
+    , _alertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
+    , _currentTimerTickSoundVolume :: Int
+    , _timerTickSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     }
 makeLenses ''AppState

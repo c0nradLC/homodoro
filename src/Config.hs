@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Config (
     createConfigFileIfNotExists,
@@ -6,9 +7,9 @@ module Config (
     readTasksFilePath,
     readInitialTimer,
     readStartStopSound,
-    readTimerNotificationAlert,
-    readTimerSoundAlert,
-    readSoundVolume,
+    readTimerPopupAlert,
+    readAlertSoundVolume,
+    readTimerTickSoundVolume,
     updateConfig,
     configFileSettings,
     configSettingsValueToText,
@@ -18,19 +19,19 @@ module Config (
     configBoolValue,
     findConfigSetting,
     showBool,
-    soundVolumePercentage
+    soundVolumePercentage,
 )
 where
 
 import qualified Control.Applicative as FP
-import Control.Lens ((%~), (&), (.~))
+import Control.Lens (Lens', (%~), (&), (.~))
 import Control.Lens.Getter ((^.))
 import Control.Monad (unless)
-import Data.Aeson hiding ((.=))
+import Data.Aeson (decode, encode)
 import qualified Data.ByteString.Lazy as BSL
 import Data.List (find)
 import qualified Data.Text as T
-import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerNotificationAlert, timerSoundAlert, soundVolume)
+import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), timerAlertSoundVolume, configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerPopupAlert, timerTickSoundVolume)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import UI.Timer (formatTimer)
@@ -45,9 +46,9 @@ defaultConfig = do
             , _longBreakInitialTimer = ConfigSetting{_configLabel = "Long break initial timer", _configValue = ConfigInitialTimer LongBreak 900}
             , _startStopSound = ConfigSetting{_configLabel = "Timer start/stop sound", _configValue = ConfigTimerStartStopSound False}
             , _tasksFilePath = ConfigSetting{_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks"}
-            , _timerNotificationAlert = ConfigSetting{_configLabel = "Timer notification alert", _configValue = ConfigTimerNotificationAlert True}
-            , _timerSoundAlert = ConfigSetting{_configLabel = "Timer sound alert", _configValue = ConfigTimerSoundAlert True}
-            , _soundVolume = ConfigSetting{_configLabel = "Sound volume", _configValue = ConfigSoundVolume 60}
+            , _timerPopupAlert = ConfigSetting{_configLabel = "Timer popup alert", _configValue = ConfigTimerPopupAlert True}
+            , _timerAlertSoundVolume = ConfigSetting{_configLabel = "Timer alert sound volume", _configValue = ConfigTimerAlertSoundVolume 60}
+            , _timerTickSoundVolume = ConfigSetting{_configLabel = "Timer tick sound volume", _configValue = ConfigTimerTickSoundVolume 60}
             }
 
 createConfigFileIfNotExists :: IO ()
@@ -64,6 +65,8 @@ xdgConfigFilePath = do
     pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
 
 updateConfig :: ConfigFileOperation -> IO ConfigFile
+updateConfig ToggleStartStopSound = updateBoolConfig startStopSound
+updateConfig ToggleTimerPopupAlert = updateBoolConfig timerPopupAlert
 updateConfig (AddInitialTimer timer time) = do
     configFile <- readConfig
     let updatedConfigFile = configFile & initialTimerL %~ addInitialTimer
@@ -76,39 +79,31 @@ updateConfig (AddInitialTimer timer time) = do
         Pomodoro -> pomodoroInitialTimer . configValue
         ShortBreak -> shortBreakInitialTimer . configValue
         LongBreak -> longBreakInitialTimer . configValue
-updateConfig ToggleStartStopSound = do
-    configFile <- readConfig
-    let updatedConfigFile = configFile & startStopSound . configValue %~ toggleBool
-    writeConfig updatedConfigFile
-    return updatedConfigFile
 updateConfig (SetTasksFilePath fp) = do
     configFile <- readConfig
     let updatedConfigFile = configFile & tasksFilePath . configValue .~ ConfigTasksFilePath fp
     writeConfig updatedConfigFile
     return updatedConfigFile
-updateConfig ToggleTimerNotificationAlert = do
+updateConfig (AddSoundVolume alertSoundVolumeL volStep) = do
     configFile <- readConfig
-    let updatedConfigFile = configFile & timerNotificationAlert . configValue %~ toggleBool
+    let updatedConfigFile = configFile & alertSoundVolumeL . configValue %~ addSoundVolumeStep
     writeConfig updatedConfigFile
     return updatedConfigFile
-updateConfig ToggleTimerSoundAlert = do
-    configFile <- readConfig
-    let updatedConfigFile = configFile & timerSoundAlert . configValue %~ toggleBool
-    writeConfig updatedConfigFile
-    return updatedConfigFile
-updateConfig (AddSoundVolume volStep) = do
-    configFile <- readConfig
-    let updatedConfigFile = configFile & soundVolume . configValue %~ addSoundVolumeStep
-    writeConfig updatedConfigFile
-    return updatedConfigFile
-    where addSoundVolumeStep (ConfigSoundVolume val) = ConfigSoundVolume (min (max (val + volStep) 0) 128)
-          addSoundVolumeStep val = val
+  where
+    addSoundVolumeStep (ConfigTimerAlertSoundVolume val) = ConfigTimerAlertSoundVolume (min (max (val + volStep) 0) 128)
+    addSoundVolumeStep (ConfigTimerTickSoundVolume val) = ConfigTimerTickSoundVolume (min (max (val + volStep) 0) 128)
+    addSoundVolumeStep val = val
 
+updateBoolConfig :: Lens' ConfigFile ConfigSetting -> IO ConfigFile
+updateBoolConfig configL = do
+    configFile <- readConfig
+    let updatedConfigFile = configFile & configL . configValue %~ toggleBool
+    writeConfig updatedConfigFile
+    return updatedConfigFile
 
 toggleBool :: ConfigSettingValue -> ConfigSettingValue
 toggleBool (ConfigTimerStartStopSound b) = ConfigTimerStartStopSound (not b)
-toggleBool (ConfigTimerNotificationAlert b) = ConfigTimerNotificationAlert  (not b)
-toggleBool (ConfigTimerSoundAlert b) = ConfigTimerSoundAlert (not b)
+toggleBool (ConfigTimerPopupAlert b) = ConfigTimerPopupAlert (not b)
 toggleBool val = val
 
 writeConfig :: ConfigFile -> IO ()
@@ -135,72 +130,76 @@ defaultTasksFilePathIO = do
 readInitialTimer :: Timer -> IO Int
 readInitialTimer timer = do
     initialTimerValue <$> readConfig
-    where initialTimerValue configFile = case timer of
-            Pomodoro -> configIntValue (configFile ^. pomodoroInitialTimer)
-            ShortBreak -> configIntValue (configFile ^. shortBreakInitialTimer)
-            LongBreak -> configIntValue (configFile ^. longBreakInitialTimer)
-
+  where
+    initialTimerValue configFile = case timer of
+        Pomodoro -> configIntValue (configFile ^. pomodoroInitialTimer)
+        ShortBreak -> configIntValue (configFile ^. shortBreakInitialTimer)
+        LongBreak -> configIntValue (configFile ^. longBreakInitialTimer)
 
 readStartStopSound :: IO Bool
 readStartStopSound = do
     configFile <- readConfig
     return $ configBoolValue $ configFile ^. startStopSound
 
-readTimerNotificationAlert :: IO Bool
-readTimerNotificationAlert = do
+readTimerPopupAlert :: IO Bool
+readTimerPopupAlert = do
     configFile <- readConfig
-    return $ configBoolValue $ configFile ^. timerNotificationAlert
+    return $ configBoolValue $ configFile ^. timerPopupAlert
 
-readTimerSoundAlert :: IO Bool
-readTimerSoundAlert = do
+readAlertSoundVolume :: IO Int
+readAlertSoundVolume = do
     configFile <- readConfig
-    return $ configBoolValue $ configFile ^. timerSoundAlert
+    return $ maybeConfigIntValue $ Just (configFile ^. timerAlertSoundVolume)
 
-readSoundVolume :: IO Int
-readSoundVolume = do
+readTimerTickSoundVolume :: IO Int
+readTimerTickSoundVolume = do
     configFile <- readConfig
-    return $ maybeConfigIntValue $ Just (configFile ^. soundVolume)
+    return $ maybeConfigIntValue $ Just (configFile ^. timerTickSoundVolume)
 
 configFileSettings :: ConfigFile -> [ConfigSetting]
 configFileSettings configFile =
-    [ configFile ^. pomodoroInitialTimer
+    [ configFile ^. timerAlertSoundVolume
+    , configFile ^. timerTickSoundVolume
+    , configFile ^. pomodoroInitialTimer
     , configFile ^. shortBreakInitialTimer
     , configFile ^. longBreakInitialTimer
-    , configFile ^. tasksFilePath
     , configFile ^. startStopSound
-    , configFile ^. timerNotificationAlert
-    , configFile ^. timerSoundAlert
-    , configFile ^. soundVolume
+    , configFile ^. timerPopupAlert
+    , configFile ^. tasksFilePath
     ]
 
 findConfigSetting :: ConfigSettingValue -> [ConfigSetting] -> Maybe ConfigSetting
 findConfigSetting configSettingValue =
-    find (\setting -> case (configSettingValue, setting ^. configValue) of
-        (ConfigSoundVolume _, ConfigSoundVolume _) -> True
-        (ConfigInitialTimer timer _, ConfigInitialTimer settingTimer _) -> timer == settingTimer
-        (ConfigTimerNotificationAlert _, ConfigTimerNotificationAlert _) -> True
-        (ConfigTimerSoundAlert _, ConfigTimerSoundAlert _) -> True
-        _ -> setting ^. configValue == configSettingValue)
+    find
+        ( \setting -> case (configSettingValue, setting ^. configValue) of
+            (ConfigTimerAlertSoundVolume _, ConfigTimerAlertSoundVolume _) -> True
+            (ConfigTimerTickSoundVolume _, ConfigTimerTickSoundVolume _) -> True
+            (ConfigInitialTimer timer _, ConfigInitialTimer settingTimer _) -> timer == settingTimer
+            (ConfigTimerPopupAlert _, ConfigTimerPopupAlert _) -> True
+            _ -> setting ^. configValue == configSettingValue
+        )
 
 configSettingsValueToText :: ConfigSettingValue -> T.Text
 configSettingsValueToText (ConfigInitialTimer _ i) = T.pack $ formatTimer i
 configSettingsValueToText (ConfigTimerStartStopSound b) = T.pack $ showBool b
 configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
-configSettingsValueToText (ConfigTimerNotificationAlert b) = T.pack $ showBool b
-configSettingsValueToText (ConfigTimerSoundAlert b) = T.pack $ showBool b
-configSettingsValueToText (ConfigSoundVolume vol) = T.pack $ soundVolumePercentage vol
+configSettingsValueToText (ConfigTimerPopupAlert b) = T.pack $ showBool b
+configSettingsValueToText (ConfigTimerAlertSoundVolume vol) = T.pack $ soundVolumePercentage vol
+configSettingsValueToText (ConfigTimerTickSoundVolume vol) = T.pack $ soundVolumePercentage vol
 
 showBool :: Bool -> String
 showBool true = if true then "Enabled" else "Disabled"
 
 maybeConfigIntValue :: Maybe ConfigSetting -> Int
 maybeConfigIntValue (Just (ConfigSetting _ (ConfigInitialTimer _ initialTimer))) = initialTimer
-maybeConfigIntValue (Just (ConfigSetting _ (ConfigSoundVolume currentSoundVolume))) = currentSoundVolume
+maybeConfigIntValue (Just (ConfigSetting _ (ConfigTimerAlertSoundVolume currentAlertSoundVolume))) = currentAlertSoundVolume
+maybeConfigIntValue (Just (ConfigSetting _ (ConfigTimerTickSoundVolume currentTimerTickSoundVolume))) = currentTimerTickSoundVolume
 maybeConfigIntValue _ = 0
 
 configIntValue :: ConfigSetting -> Int
 configIntValue (ConfigSetting _ (ConfigInitialTimer _ initialTimer)) = initialTimer
-configIntValue (ConfigSetting _ (ConfigSoundVolume currentSoundVolume)) = currentSoundVolume
+configIntValue (ConfigSetting _ (ConfigTimerAlertSoundVolume currentAlertSoundVolume)) = currentAlertSoundVolume
+configIntValue (ConfigSetting _ (ConfigTimerTickSoundVolume currentTimerTickSoundVolume)) = currentTimerTickSoundVolume
 configIntValue _ = 0
 
 configFilePathValue :: ConfigSetting -> FilePath
@@ -208,16 +207,14 @@ configFilePathValue (ConfigSetting _ (ConfigTasksFilePath path)) = path
 configFilePathValue _ = FP.empty
 
 maybeConfigBoolValue :: Maybe ConfigSetting -> Bool
-maybeConfigBoolValue (Just (ConfigSetting _ (ConfigTimerNotificationAlert value))) = value
-maybeConfigBoolValue (Just (ConfigSetting _ (ConfigTimerSoundAlert value))) = value
+maybeConfigBoolValue (Just (ConfigSetting _ (ConfigTimerPopupAlert value))) = value
 maybeConfigBoolValue (Just (ConfigSetting _ (ConfigTimerStartStopSound value))) = value
 maybeConfigBoolValue _ = False
 
 configBoolValue :: ConfigSetting -> Bool
-configBoolValue (ConfigSetting _ (ConfigTimerNotificationAlert value)) = value
-configBoolValue (ConfigSetting _ (ConfigTimerSoundAlert value)) = value
+configBoolValue (ConfigSetting _ (ConfigTimerPopupAlert value)) = value
 configBoolValue (ConfigSetting _ (ConfigTimerStartStopSound value)) = value
 configBoolValue _ = False
 
 soundVolumePercentage :: Int -> String
-soundVolumePercentage vol = show (round((fromIntegral vol / 128 :: Double) * 100) :: Int) ++ "%"
+soundVolumePercentage vol = show (round ((fromIntegral vol / 128 :: Double) * 100) :: Int) ++ "%"

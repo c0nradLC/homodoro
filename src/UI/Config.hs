@@ -47,22 +47,21 @@ drawInitialTimerDialog currentInitialTimer =
         [ padTop (Pad 1) $
             C.hCenter (txt "Initial timer")
                 <=> C.hCenter (withAttr timerAttr (padLeftRight 1 $ str $ formatTimer currentInitialTimer))
-        , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow]   - Increase by 1min"
+        , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow] - Increase by 1min"
         , C.hCenter (padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min")
         ]
 
-soundVolumeDialog :: Maybe Int -> Dialog SoundVolumeDialogChoice
-soundVolumeDialog _ = dialog title (Just (0, options)) 50
+soundVolumeDialog :: Maybe String -> Maybe Int -> Dialog SoundVolumeDialogChoice
+soundVolumeDialog title _ = dialog title (Just (1, options)) 50
     where
-      options = [("Play test audio", PlayTestAudio), ("Close", CloseSoundVolumeDialog)]
-      title = Just "Sound volume"
+      options = [("Close", CloseSoundVolumeDialog), ("Play test audio", PlayTestAudio)]
 
-drawSoundVolumeDialog :: Int -> Widget Name
-drawSoundVolumeDialog vol =
+drawSoundVolumeDialog :: String -> Int -> Widget Name
+drawSoundVolumeDialog title vol =
     vBox
         [ padTop (Pad 1) $
-            C.hCenter (txt "Current sound volume")
+            C.hCenter (str title)
                 <=> C.hCenter (withAttr blackOnWhiteAttr (padLeftRight 1 $ str $ soundVolumePercentage vol))
-        , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow]   - Increase by 5"
+        , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow] - Increase by 5"
         , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 5"
         ]

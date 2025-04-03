@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Notify (
     playAudio,
@@ -11,7 +12,6 @@ import Brick (EventM)
 import Control.Monad (when)
 import Control.Monad.Cont (MonadIO (liftIO))
 import qualified Data.ByteString as SB (ByteString)
-import Data.Default.Class (Default (def))
 import Data.FileEmbed (embedFile)
 import qualified Libnotify.C.Notify as LN
 import Libnotify.C.NotifyNotification (Timeout (..), notify_notification_set_timeout, notify_notification_show)
@@ -59,7 +59,7 @@ playAudio audio vol = do
 
 loadAndPlaySound :: SB.ByteString -> Int -> IO ()
 loadAndPlaySound soundName vol = do
-    Mix.openAudio def 256
+    Mix.openAudio defaultAudio 256
     audio <- Mix.decode soundName
     Mix.setVolume vol audio
     Mix.play audio
@@ -72,3 +72,10 @@ whileTrueM :: Monad m => m Bool -> m ()
 whileTrueM cond = do
     loop <- cond
     when loop $ whileTrueM cond
+
+defaultAudio :: Mix.Audio
+defaultAudio = Mix.Audio
+  { Mix.audioFrequency = 44100
+  , Mix.audioFormat = Mix.FormatU8
+  , Mix.audioOutput = Mix.Stereo
+  }

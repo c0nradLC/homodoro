@@ -5,7 +5,7 @@ module UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog, so
 import Brick (Widget, hBox, padLeftRight, txt, vLimit, withAttr, vBox, padTop, Padding (..), (<=>), padBottom, str)
 import Brick.Widgets.Core (fill)
 import qualified Brick.Widgets.List as BL
-import Config (configSettingsValueToText, soundVolumePercentage)
+import Config (configSettingsValueToString, soundVolumePercentage)
 import Control.Lens ((^.))
 import Resources (ConfigSetting, Name, configLabel, configValue, Timer (..), InitialTimerDialogChoice (CloseInitialTimerDialog), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio))
 import UI.Attributes (selectedConfigAttr, timerAttr, blackOnWhiteAttr)
@@ -27,9 +27,9 @@ drawConfig selected cfg = do
         vLimit 1 $
             padLeftRight 1 $
                 hBox
-                    [ txt (cfg ^. configLabel)
+                    [ str (cfg ^. configLabel)
                     , fill ' '
-                    , txt $ configSettingsValueToText $ cfg ^. configValue
+                    , str $ configSettingsValueToString $ cfg ^. configValue
                     ]
 
 initialTimerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice

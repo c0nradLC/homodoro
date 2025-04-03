@@ -12,7 +12,7 @@ module Config (
     readTimerTickSoundVolume,
     updateConfig,
     configFileSettings,
-    configSettingsValueToText,
+    configSettingsValueToString,
     defaultTasksFilePathIO,
     maybeConfigIntValue,
     maybeConfigBoolValue,
@@ -28,13 +28,12 @@ import Control.Lens (Lens', (%~), (&), (.~))
 import Control.Lens.Getter ((^.))
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
-import qualified Data.ByteString.Lazy as BSL
 import Data.List (find)
-import qualified Data.Text as T
 import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), timerAlertSoundVolume, configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerPopupAlert, timerTickSoundVolume)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import UI.Timer (formatTimer)
+import Data.ByteString.Lazy.Char8 (pack, unpack)
 
 defaultConfig :: IO ConfigFile
 defaultConfig = do
@@ -57,7 +56,7 @@ createConfigFileIfNotExists = do
     D.createDirectoryIfMissing True (FP.takeDirectory configFilePath)
     fileExists <- D.doesFileExist configFilePath
     defaultConfigFile <- defaultConfig
-    unless fileExists $ do BSL.writeFile configFilePath $ encode defaultConfigFile
+    unless fileExists $ do writeFile configFilePath $ unpack $ encode defaultConfigFile
 
 xdgConfigFilePath :: IO FilePath
 xdgConfigFilePath = do
@@ -109,13 +108,13 @@ toggleBool val = val
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
     configFilePath <- xdgConfigFilePath
-    BSL.writeFile configFilePath $ encode cfg
+    writeFile configFilePath $ unpack $ encode cfg
 
 readConfig :: IO ConfigFile
 readConfig = do
     configFilePath <- xdgConfigFilePath
-    configFileContent <- BSL.readFile configFilePath
-    maybe defaultConfig return (decode configFileContent)
+    configFileContent <- readFile configFilePath
+    maybe defaultConfig return (decode $ pack configFileContent)
 
 readTasksFilePath :: IO FilePath
 readTasksFilePath = do
@@ -179,13 +178,13 @@ findConfigSetting configSettingValue =
             _ -> setting ^. configValue == configSettingValue
         )
 
-configSettingsValueToText :: ConfigSettingValue -> T.Text
-configSettingsValueToText (ConfigInitialTimer _ i) = T.pack $ formatTimer i
-configSettingsValueToText (ConfigTimerStartStopSound b) = T.pack $ showBool b
-configSettingsValueToText (ConfigTasksFilePath p) = T.pack $ show p
-configSettingsValueToText (ConfigTimerPopupAlert b) = T.pack $ showBool b
-configSettingsValueToText (ConfigTimerAlertSoundVolume vol) = T.pack $ soundVolumePercentage vol
-configSettingsValueToText (ConfigTimerTickSoundVolume vol) = T.pack $ soundVolumePercentage vol
+configSettingsValueToString :: ConfigSettingValue -> String
+configSettingsValueToString (ConfigInitialTimer _ i) = formatTimer i
+configSettingsValueToString (ConfigTimerStartStopSound b) = showBool b
+configSettingsValueToString (ConfigTasksFilePath p) = show p
+configSettingsValueToString (ConfigTimerPopupAlert b) = showBool b
+configSettingsValueToString (ConfigTimerAlertSoundVolume vol) = soundVolumePercentage vol
+configSettingsValueToString (ConfigTimerTickSoundVolume vol) = soundVolumePercentage vol
 
 showBool :: Bool -> String
 showBool true = if true then "Enabled" else "Disabled"

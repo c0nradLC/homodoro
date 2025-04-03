@@ -42,7 +42,6 @@ import Resources (
     initialTimerConfigDialog,
     taskList, tasksFilePathBrowser, currentAlertSoundVolume, alertSoundVolumeConfigDialog, ConfigSettingValue (..), currentTimerTickSoundVolume, timerTickSoundVolumeConfigDialog,
  )
-import qualified Resources as R
 import Task (createTasksFileIfNotExists, readTasks)
 import UI.Attributes (
     attributes
@@ -70,9 +69,9 @@ createAppState = do
     createTasksFileIfNotExists
     tasks <- readTasks
     configFile <- readConfig
-    setPomodoroInitialTimer <- readInitialTimer R.Pomodoro
-    setShortBreakInitialTimer <- readInitialTimer R.ShortBreak
-    setLongBreakInitialTimer <- readInitialTimer R.LongBreak
+    setPomodoroInitialTimer <- readInitialTimer Pomodoro
+    setShortBreakInitialTimer <- readInitialTimer ShortBreak
+    setLongBreakInitialTimer <- readInitialTimer LongBreak
     tasksFilePath <- readTasksFilePath
     initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just tasksFilePath
     setAlertSoundVolume <- readAlertSoundVolume

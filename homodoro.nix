@@ -1,5 +1,5 @@
-{ mkDerivation, aeson, base, brick, bytestring, data-default-class, haskell-language-server, libnotify
-, directory, file-embed, filepath, gi-notify, lens, lib, mtl, sdl2, sdl2-mixer, temporary, text, vector, vty
+{ mkDerivation, aeson, base, brick, bytestring, haskell-language-server, libnotify
+, directory, file-embed, filepath, gi-notify, lens, lib, mtl, sdl2, sdl2-mixer, vector, vty
 }:
 mkDerivation {
   pname = "homodoro";
@@ -7,8 +7,8 @@ mkDerivation {
   src = ./.;
   isExecutable = true;
   executableHaskellDepends = [
-    aeson base brick bytestring data-default-class directory file-embed
-    filepath gi-notify lens mtl sdl2 sdl2-mixer temporary text vector
+    aeson base brick bytestring directory file-embed
+    filepath gi-notify lens mtl sdl2 sdl2-mixer vector
     vty libnotify
   ];
 

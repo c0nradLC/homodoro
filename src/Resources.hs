@@ -13,7 +13,6 @@ module Resources (
     ConfigSettingValue (..),
     ConfigFileOperation (..),
     Task (..),
-    TaskListUpdate,
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
@@ -54,9 +53,8 @@ import Brick.Widgets.Dialog (Dialog)
 import Brick.Widgets.Edit (Editor)
 import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
-import Control.Lens
+import Control.Lens ( Lens', makeLenses )
 import Data.Aeson.TH (defaultOptions, deriveJSON)
-import qualified Data.Text as T
 
 data Timer
     = Pomodoro
@@ -99,7 +97,7 @@ data Audio
     deriving (Show, Eq)
 
 data Task = Task
-    { _taskContent :: T.Text
+    { _taskContent :: String
     , _taskCompleted :: Bool
     }
 
@@ -114,10 +112,8 @@ instance Eq Task where
 data TaskListOperation
     = AppendTask Task
     | DeleteTask Task
-    | EditTask Task T.Text
+    | EditTask Task String
     | ChangeTaskCompletion Task
-
-type TaskListUpdate = TaskListOperation -> IO [Task]
 
 data ConfigSettingValue
     = ConfigInitialTimer Timer Int
@@ -132,7 +128,7 @@ makeLenses ''ConfigSettingValue
 deriveJSON defaultOptions ''ConfigSettingValue
 
 data ConfigSetting = ConfigSetting
-    { _configLabel :: T.Text
+    { _configLabel :: String
     , _configValue :: ConfigSettingValue
     }
     deriving (Show, Eq)
@@ -170,7 +166,7 @@ data AppState = AppState
     , _pomodoroTimer :: Int
     , _shortBreakTimer :: Int
     , _longBreakTimer :: Int
-    , _taskEditor :: Editor T.Text Name
+    , _taskEditor :: Editor String Name
     , _taskList :: BL.List Name Task
     , _focus :: BF.FocusRing Name
     , _configList :: BL.List Name ConfigSetting

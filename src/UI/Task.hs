@@ -2,16 +2,21 @@
 
 module UI.Task (drawTaskEditor, drawTaskList) where
 
-import Brick (Padding (Pad), Widget, emptyWidget, padLeft, padTop, str, txt, txtWrap, vBox, withAttr, withBorderStyle, (<=>))
+import Brick (Padding (Pad), Widget, emptyWidget, padLeft, padTop, str, txt, vBox, withAttr, withBorderStyle, (<=>), strWrap)
 import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Edit (renderEditor)
 import qualified Brick.Widgets.List as BL
-import Control.Lens
-import qualified Data.Text as Txt
+import Control.Lens ( (^.) )
 import Resources
+    ( taskEditor,
+      focus,
+      TaskAction(Edit, Insert),
+      Task,
+      AppState,
+      Name(TaskEdit) )
 import qualified Resources as R
 import UI.Attributes (selectedTaskAttr, taskCompletedLabelAttr, taskCompletedWhiteBgLabelAttr, taskPendingLabelAttr, taskPendingWhiteBgLabelAttr)
 
@@ -22,8 +27,8 @@ drawTaskEditor s =
             B.borderWithLabel (str "Task") $
                 renderEditor drawTaskEditorContent (BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Insert) || BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Edit)) (s ^. taskEditor)
 
-drawTaskEditorContent :: [Txt.Text] -> Widget Name
-drawTaskEditorContent t = txt (Txt.unlines t)
+drawTaskEditorContent :: [String] -> Widget Name
+drawTaskEditorContent t = str (unlines t)
 
 drawTaskList :: BL.List Name Task -> Widget Name
 drawTaskList tasks = do
@@ -45,7 +50,7 @@ taskListItem task sel =
         [ withBorderStyle BS.unicodeRounded $
             B.border $
                 padLeft (Pad 1) $
-                    txtWrap (task ^. R.taskContent)
+                    strWrap (task ^. R.taskContent)
                         <=> padTop
                             (Pad 1)
                             ( emptyWidget

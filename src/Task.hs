@@ -9,27 +9,26 @@ module Task (
 )
 where
 
-import qualified Config as CFG
+import Config
 import Control.Lens (filtered, over, traversed, view, (%~), (.~))
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Text as T
-import Resources (Task (..), TaskListOperation (..), TaskListUpdate, taskCompleted, taskContent)
-import qualified System.Directory as D
-import qualified System.FilePath as FP
+import Resources (Task (..), TaskListOperation (..), taskCompleted, taskContent)
+import System.Directory ( createDirectoryIfMissing, doesFileExist )
+import System.FilePath ( takeDirectory )
+import Data.ByteString.Lazy.Char8 (unpack, pack)
 
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
-    filePath <- CFG.readTasksFilePath
-    D.createDirectoryIfMissing True (FP.takeDirectory filePath)
-    fileExists <- D.doesFileExist filePath
-    unless fileExists $ do BSL.writeFile filePath ""
+    filePath <- readTasksFilePath
+    createDirectoryIfMissing True (takeDirectory filePath)
+    fileExists <- doesFileExist filePath
+    unless fileExists $ do writeFile filePath ""
 
-mkTask :: T.Text -> Task
-mkTask txt = Task{_taskContent = txt, _taskCompleted = False}
+mkTask :: String -> Task
+mkTask str = Task{_taskContent = str, _taskCompleted = False}
 
-updateTaskList :: TaskListUpdate
+updateTaskList :: TaskListOperation -> IO [Task]
 updateTaskList cop = do
     tasks <- readTasks
     case cop of
@@ -40,20 +39,20 @@ updateTaskList cop = do
 
 writeTasks :: [Task] -> IO [Task]
 writeTasks tasks = do
-    tasksFilePath <- CFG.readTasksFilePath
-    BSL.writeFile tasksFilePath $ encode tasks
+    tasksFilePath <- readTasksFilePath
+    writeFile tasksFilePath $ unpack $ encode tasks
     return tasks
 
 readTasks :: IO [Task]
 readTasks = do
-    tasksFilePath <- CFG.readTasksFilePath
-    tasksFromFile <- BSL.readFile tasksFilePath
-    case decode tasksFromFile of
+    tasksFilePath <- readTasksFilePath
+    tasksFromFile <- readFile tasksFilePath
+    case decode $ pack tasksFromFile of
         Just task -> do
             return task
         Nothing -> return []
 
-taskExists :: T.Text -> IO Bool
+taskExists :: String -> IO Bool
 taskExists content = do
     tasks <- readTasks
     let tasksContents = map (view taskContent) tasks

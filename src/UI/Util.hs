@@ -1,4 +1,4 @@
-module Util (changeFocus) where
+module UI.Util (changeFocus) where
 
 import Brick (EventM)
 import qualified Brick.Focus as BF

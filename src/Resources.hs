@@ -53,7 +53,7 @@ import Brick.Widgets.Dialog (Dialog)
 import Brick.Widgets.Edit (Editor)
 import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
-import Control.Lens ( Lens', makeLenses )
+import Control.Lens (Lens', makeLenses)
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 
 data Timer

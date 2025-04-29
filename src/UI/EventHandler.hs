@@ -12,7 +12,7 @@ import Control.Lens ((.=), (^.), Lens', uses)
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
 import Notify ( alertRoundEnded, playAudio )
 import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), configList, configValue, focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, pomodoroCounter, pomodoroCyclesCounter, tasksFilePathBrowser, initialTimerConfigDialog, Task, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), alertSoundVolumeConfigDialog, currentAlertSoundVolume, timerAlertSoundVolume, timerTickSoundVolumeConfigDialog, currentTimerTickSoundVolume, timerTickSoundVolume, ConfigFile)
-import Task (mkTask, taskExists, updateTaskList)
+import Task (mkTask, taskExists, updateTaskList, readTasks)
 import UI.Util (changeFocus)
 import Brick.Widgets.FileBrowser (handleFileBrowserEvent, fileBrowserIsSearching, fileBrowserCursor, FileInfo (fileInfoFilePath, fileInfoFileStatus), FileType (RegularFile), FileStatus (fileStatusFileType))
 import UI.Config ( initialTimerDialog, soundVolumeDialog )
@@ -53,7 +53,7 @@ handleEvent ev = do
                 taskEditorContent = unlines $ getEditContents (s ^. taskEditor)
                 (selectedIndex, selectedTask) = case selectedListTask of
                     Just (idx, task) -> (idx, task)
-                    _ -> (-1, mkTask "")
+                    _ -> (-1, mkTask "" $ Just False)
             case currentFocus of
                 Just (TaskEdit action) -> do
                     case (k, ms) of
@@ -169,6 +169,8 @@ handleEvent ev = do
                                                 $ \updatedConfigSettings -> do
                                                 updateConfigList s configList updatedConfigSettings
                                                 changeFocus Config s
+                                                updatedTasks <- liftIO readTasks
+                                                taskList .= listReplace (fromList updatedTasks) (listSelected $ s ^. taskList) (s ^. taskList)
                                         else
                                             zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
                                     Nothing -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
@@ -278,7 +280,7 @@ saveTask taskEditorContent selectedTask action s = do
     if not (null taskEditorContent) && not taskAlreadyExists
         then do
             let taskOperation = case action of
-                    Insert -> AppendTask $ mkTask taskEditorContent
+                    Insert -> AppendTask $ mkTask taskEditorContent $ Just False
                     Edit -> EditTask selectedTask taskEditorContent
             updatedTasks <- liftIO $ updateTaskList taskOperation
             taskList .= listReplace (fromList updatedTasks) (listSelected $ s ^. taskList) (s ^. taskList)

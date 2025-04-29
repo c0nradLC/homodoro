@@ -28,12 +28,12 @@ import Control.Lens (Lens', (%~), (&), (.~))
 import Control.Lens.Getter ((^.))
 import Control.Monad (unless)
 import Data.Aeson (decode, encode)
+import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.List (find)
-import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), timerAlertSoundVolume, configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerPopupAlert, timerTickSoundVolume)
+import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerAlertSoundVolume, timerPopupAlert, timerTickSoundVolume)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import UI.Timer (formatTimer)
-import Data.ByteString.Lazy.Char8 (pack, unpack)
 
 defaultConfig :: IO ConfigFile
 defaultConfig = do
@@ -124,7 +124,7 @@ readTasksFilePath = do
 defaultTasksFilePathIO :: IO FilePath
 defaultTasksFilePathIO = do
     xdgDirectory <- D.getXdgDirectory D.XdgData ""
-    return $ xdgDirectory FP.</> "homodoro" FP.</> "tasks"
+    return $ xdgDirectory FP.</> "homodoro" FP.</> "tasks.md"
 
 readInitialTimer :: Timer -> IO Int
 readInitialTimer timer = do

@@ -4,5 +4,6 @@ let
 in
 homodoroEnv.overrideAttrs (old: {
   nativeBuildInputs = (old.nativeBuildInputs or [])
-      ++ [ pkgs.haskellPackages.haskell-language-server ];
+      ++ [ pkgs.haskellPackages.haskell-language-server ]
+      ++ [ pkgs.haskellPackages.cabal-install];
 })

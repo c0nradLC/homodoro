@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DerivingVia #-}
 
 module Notify (
     playAudio,
@@ -74,8 +73,9 @@ whileTrueM cond = do
     when loop $ whileTrueM cond
 
 defaultAudio :: Mix.Audio
-defaultAudio = Mix.Audio
-  { Mix.audioFrequency = 44100
-  , Mix.audioFormat = Mix.FormatU8
-  , Mix.audioOutput = Mix.Stereo
-  }
+defaultAudio =
+    Mix.Audio
+        { Mix.audioFrequency = 44100
+        , Mix.audioFormat = Mix.FormatU8
+        , Mix.audioOutput = Mix.Stereo
+        }

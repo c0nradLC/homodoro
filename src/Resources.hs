@@ -55,6 +55,7 @@ import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
 import Control.Lens (Lens', makeLenses)
 import Data.Aeson.TH (defaultOptions, deriveJSON)
+import Data.Text (Text)
 
 data Timer
     = Pomodoro
@@ -97,7 +98,7 @@ data Audio
     deriving (Show, Eq)
 
 data Task = Task
-    { _taskContent :: String
+    { _taskContent :: Text
     , _taskCompleted :: Bool
     }
 
@@ -112,7 +113,7 @@ instance Eq Task where
 data TaskListOperation
     = AppendTask Task
     | DeleteTask Task
-    | EditTask Task String
+    | EditTask Task Text
     | ChangeTaskCompletion Task
 
 data ConfigSettingValue
@@ -166,7 +167,7 @@ data AppState = AppState
     , _pomodoroTimer :: Int
     , _shortBreakTimer :: Int
     , _longBreakTimer :: Int
-    , _taskEditor :: Editor String Name
+    , _taskEditor :: Editor Text Name
     , _taskList :: BL.List Name Task
     , _focus :: BF.FocusRing Name
     , _configList :: BL.List Name ConfigSetting

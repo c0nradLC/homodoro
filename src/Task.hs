@@ -12,14 +12,17 @@ where
 import Config (readTasksFilePath)
 import Control.Lens (filtered, over, traversed, view, (%~), (.~), (^.))
 import Control.Monad (unless)
-import Data.Aeson (decode, encode)
-import Data.ByteString.Char8 (ByteString, drop, dropWhile, dropWhileEnd, isPrefixOf, lines, pack, readFile, unlines, unpack)
-import qualified Data.ByteString.Lazy.Char8 as BSL (readFile, unpack)
+import Data.Aeson (decodeStrict)
+import Data.Aeson.Text (encodeToLazyText)
 import Data.Maybe (fromMaybe)
+import Data.Text (Text, drop, dropWhile, dropWhileEnd, isPrefixOf, lines, unlines)
+import Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text.IO as TIO (readFile, writeFile)
+import qualified Data.Text.Lazy as TL (toStrict)
 import Resources (Task (..), TaskListOperation (..), taskCompleted, taskContent)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, takeExtension)
-import Prelude hiding (drop, dropWhile, lines, readFile, take, takeWhile, unlines)
+import Prelude hiding (drop, dropWhile, lines, take, takeWhile, unlines)
 
 createTasksFileIfNotExists :: IO ()
 createTasksFileIfNotExists = do
@@ -28,8 +31,8 @@ createTasksFileIfNotExists = do
     fileExists <- doesFileExist filePath
     unless fileExists $ do writeFile filePath ""
 
-mkTask :: String -> Maybe Bool -> Task
-mkTask str completed = Task{_taskContent = str, _taskCompleted = fromMaybe False completed}
+mkTask :: Text -> Maybe Bool -> Task
+mkTask txt completed = Task{_taskContent = txt, _taskCompleted = fromMaybe False completed}
 
 updateTaskList :: TaskListOperation -> IO [Task]
 updateTaskList tlop = do
@@ -44,8 +47,8 @@ writeTasks :: [Task] -> IO [Task]
 writeTasks tasks = do
     tasksFilePath <- readTasksFilePath
     case takeExtension tasksFilePath of
-        ".json" -> writeFile tasksFilePath $ BSL.unpack $ encode tasks
-        ".md" -> writeFile tasksFilePath $ unpack $ encodeMarkdownTasks tasks
+        ".json" -> TIO.writeFile tasksFilePath $ TL.toStrict $ encodeToLazyText tasks
+        ".md" -> TIO.writeFile tasksFilePath $ encodeMarkdownTasks tasks
         _ -> return ()
     return tasks
 
@@ -54,51 +57,51 @@ readTasks = do
     tasksFilePath <- readTasksFilePath
     case takeExtension tasksFilePath of
         ".json" -> do
-            tasksFromFile <- BSL.readFile tasksFilePath
-            case decode tasksFromFile of
+            tasksFromFile <- TIO.readFile tasksFilePath
+            case decodeStrict $ encodeUtf8 tasksFromFile of
                 Just tasks -> return tasks
                 Nothing -> return []
         ".md" -> do
-            tasksFromFile <- readFile tasksFilePath
+            tasksFromFile <- TIO.readFile tasksFilePath
             return $ decodeMarkdownTasks tasksFromFile
         _ -> return []
 
-encodeMarkdownTasks :: [Task] -> ByteString
+encodeMarkdownTasks :: [Task] -> Text
 encodeMarkdownTasks tasks = unlines $ map encodeMarkdownTask tasks
 
-encodeMarkdownTask :: Task -> ByteString
+encodeMarkdownTask :: Task -> Text
 encodeMarkdownTask task =
-    let taskCompletedMarkdownString = (if task ^. taskCompleted then "- [x]" else "- [ ]")
-     in pack $ taskCompletedMarkdownString ++ " " ++ (task ^. taskContent)
+    let taskCompletedMarkdownString = if task ^. taskCompleted then "- [x]" else "- [ ]"
+     in taskCompletedMarkdownString <> " " <> (task ^. taskContent)
 
-decodeMarkdownTasks :: ByteString -> [Task]
+decodeMarkdownTasks :: Text -> [Task]
 decodeMarkdownTasks tasksFromFile =
     let taskLinesInFile = filter isCheckListItem $ lines tasksFromFile
      in map decodeMarkdownTask taskLinesInFile
 
-decodeMarkdownTask :: ByteString -> Task
+decodeMarkdownTask :: Text -> Task
 decodeMarkdownTask taskFileLine =
-    let parsedTaskContent = unpack $ stripLine $ drop 1 $ dropWhile (/= ']') taskFileLine
+    let parsedTaskContent = stripLine $ drop 1 $ dropWhile (/= ']') taskFileLine
         parsedTaskCompleted = if dropWhileEnd (/= ']') taskFileLine `elem` checkedCheckListString then Just True else Just False
      in mkTask parsedTaskContent parsedTaskCompleted
 
-stripLine :: ByteString -> ByteString
+stripLine :: Text -> Text
 stripLine = dropWhile (== ' ') . dropWhileEnd (== ' ')
 
-isCheckListItem :: ByteString -> Bool
+isCheckListItem :: Text -> Bool
 isCheckListItem taskLineContent = any (`isPrefixOf` taskLineContent) checkListStrings
 
-checkListStrings :: [ByteString]
+checkListStrings :: [Text]
 checkListStrings =
     uncheckedCheckListString ++ checkedCheckListString
 
-checkedCheckListString :: [ByteString]
+checkedCheckListString :: [Text]
 checkedCheckListString =
     [ "- [x]"
     , "-[x]"
     ]
 
-uncheckedCheckListString :: [ByteString]
+uncheckedCheckListString :: [Text]
 uncheckedCheckListString =
     [ "- []"
     , "-[]"
@@ -106,7 +109,7 @@ uncheckedCheckListString =
     , "- [ ]"
     ]
 
-taskExists :: String -> IO Bool
+taskExists :: Text -> IO Bool
 taskExists content = do
     tasks <- readTasks
     let tasksContents = map (view taskContent) tasks

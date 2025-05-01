@@ -2,7 +2,7 @@
 
 module UI.Task (drawTaskEditor, drawTaskList) where
 
-import Brick (Padding (Pad), Widget, emptyWidget, padLeft, padTop, str, txt, vBox, withAttr, withBorderStyle, (<=>), strWrap)
+import Brick (Padding (Pad), Widget, emptyWidget, padLeft, padTop, str, txt, vBox, withAttr, withBorderStyle, (<=>), txtWrap)
 import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
@@ -19,6 +19,8 @@ import Resources
       Name(TaskEdit) )
 import qualified Resources as R
 import UI.Attributes (selectedTaskAttr, taskCompletedLabelAttr, taskCompletedWhiteBgLabelAttr, taskPendingLabelAttr, taskPendingWhiteBgLabelAttr)
+import Data.Text (Text, unlines)
+import Prelude hiding (unlines)
 
 drawTaskEditor :: AppState -> Widget Name
 drawTaskEditor s =
@@ -27,8 +29,8 @@ drawTaskEditor s =
             B.borderWithLabel (str "Task") $
                 renderEditor drawTaskEditorContent (BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Insert) || BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Edit)) (s ^. taskEditor)
 
-drawTaskEditorContent :: [String] -> Widget Name
-drawTaskEditorContent t = str (unlines t)
+drawTaskEditorContent :: [Text] -> Widget Name
+drawTaskEditorContent t = txt (unlines t)
 
 drawTaskList :: BL.List Name Task -> Widget Name
 drawTaskList tasks = do
@@ -50,7 +52,7 @@ taskListItem task sel =
         [ withBorderStyle BS.unicodeRounded $
             B.border $
                 padLeft (Pad 1) $
-                    strWrap (task ^. R.taskContent)
+                    txtWrap (task ^. R.taskContent)
                         <=> padTop
                             (Pad 1)
                             ( emptyWidget

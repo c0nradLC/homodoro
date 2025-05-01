@@ -41,7 +41,8 @@ executable homodoro
       aeson <3
     , base >=4.7 && <5
     , brick <2
-    , bytestring <1
+    , text <1.3
+    , bytestring <= 0.11.4.0
     , directory <= 1.3.6.2
     , file-embed <0.1
     , filepath <2

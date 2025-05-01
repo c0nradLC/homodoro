@@ -10,7 +10,7 @@ where
 import Brick (EventM)
 import Control.Monad (when)
 import Control.Monad.Cont (MonadIO (liftIO))
-import qualified Data.ByteString as SB (ByteString)
+import Data.ByteString
 import Data.FileEmbed (embedFile)
 import qualified Libnotify.C.Notify as LN
 import Libnotify.C.NotifyNotification (Timeout (..), notify_notification_set_timeout, notify_notification_show)
@@ -29,16 +29,16 @@ alertRoundEnded msg = liftIO $ do
         _ <- notify_notification_show popup
         return ()
 
-timerEndedAudio :: SB.ByteString
+timerEndedAudio :: ByteString
 timerEndedAudio = $(embedFile "audio/timerEnded.mp3")
 
-startAudio :: SB.ByteString
+startAudio :: ByteString
 startAudio = $(embedFile "audio/start_audio.mp3")
 
-stopAudio :: SB.ByteString
+stopAudio :: ByteString
 stopAudio = $(embedFile "audio/stop_audio.mp3")
 
-timerTickAudio :: SB.ByteString
+timerTickAudio :: ByteString
 timerTickAudio = $(embedFile "audio/timerTick.mp3")
 
 playAudio :: Audio -> Int -> IO ()
@@ -56,7 +56,7 @@ playAudio audio vol = do
     Mix.closeAudio
     Mix.quit
 
-loadAndPlaySound :: SB.ByteString -> Int -> IO ()
+loadAndPlaySound :: ByteString -> Int -> IO ()
 loadAndPlaySound soundName vol = do
     Mix.openAudio defaultAudio 256
     audio <- Mix.decode soundName

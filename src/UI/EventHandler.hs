@@ -21,6 +21,8 @@ import Brick.Widgets.List
 import Data.Vector (fromList)
 import Graphics.Vty (Event(EvKey), Key (..), Modifier (..))
 import Brick.Focus (focusGetCurrent)
+import Prelude hiding (null, unlines)
+import Data.Text (unlines, Text, null)
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -274,7 +276,7 @@ resetTimer timer currentTimer = do
     initialTimer <- liftIO $ readInitialTimer currentTimer
     timer .= initialTimer
 
-saveTask :: String -> Task -> TaskAction -> AppState -> EventM Name AppState ()
+saveTask :: Text -> Task -> TaskAction -> AppState -> EventM Name AppState ()
 saveTask taskEditorContent selectedTask action s = do
     taskAlreadyExists <- liftIO $ taskExists taskEditorContent
     if not (null taskEditorContent) && not taskAlreadyExists

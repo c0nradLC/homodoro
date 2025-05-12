@@ -19,9 +19,9 @@ import Data.Text (Text, drop, dropWhile, dropWhileEnd, isPrefixOf, lines, unline
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
 import qualified Data.Text.Lazy as TL (toStrict)
-import Resources (Task (..), TaskListOperation (..), taskCompleted, taskContent)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, takeExtension)
+import Types (Task (..), TaskListOperation (..), taskCompleted, taskContent)
 import Prelude hiding (drop, dropWhile, lines, take, takeWhile, unlines)
 
 createTasksFileIfNotExists :: IO ()

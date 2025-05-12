@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Resources (
+module Types (
     Name (..),
     Timer (..),
     TaskAction (..),
@@ -16,6 +16,8 @@ module Resources (
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
+    AudioProvider (..),
+    NotificationProvider (..),
     SoundVolumeDialogChoice (..),
     timerRunning,
     pomodoroCounter,
@@ -45,6 +47,11 @@ module Resources (
     currentTimerTickSoundVolume,
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
+    notificationProvider,
+    audioProvider,
+    audioDirectoryPath,
+    audioDirectoryPathSetting,
+    audioDirectoryPathBrowser,
 )
 where
 
@@ -85,6 +92,7 @@ data Name
     | TasksFilePathBrowser
     | TimerAlertSoundVolumeDialog
     | TimerTickSoundVolumeDialog
+    | AudioDirectoryPathBrowser
     deriving (Show, Eq, Ord)
 
 data Tick = Tick
@@ -92,16 +100,31 @@ data Tick = Tick
 data Audio
     = TimerEnded
     | TimerTick
-    | Start
-    | Stop
+    | TimerStart
+    | TimerStop
     | None
     deriving (Show, Eq)
+
+data AudioProvider
+    = MPV
+    | FFPlay
+instance (Show AudioProvider) where
+    show :: AudioProvider -> String
+    show MPV = "mpv"
+    show FFPlay = "ffplay"
+
+data NotificationProvider
+    = NotifySend
+    | Zenity
+instance (Show NotificationProvider) where
+    show :: NotificationProvider -> String
+    show NotifySend = "notify-send"
+    show Zenity = "zenity"
 
 data Task = Task
     { _taskContent :: Text
     , _taskCompleted :: Bool
     }
-
 deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
@@ -123,6 +146,7 @@ data ConfigSettingValue
     | ConfigTimerPopupAlert Bool
     | ConfigTimerAlertSoundVolume Int
     | ConfigTimerTickSoundVolume Int
+    | ConfigAudioDirectoryPath FilePath
     deriving (Show, Eq)
 
 makeLenses ''ConfigSettingValue
@@ -146,6 +170,7 @@ data ConfigFile = ConfigFile
     , _timerPopupAlert :: ConfigSetting
     , _timerAlertSoundVolume :: ConfigSetting
     , _timerTickSoundVolume :: ConfigSetting
+    , _audioDirectoryPathSetting :: ConfigSetting
     }
     deriving (Show, Eq)
 makeLenses ''ConfigFile
@@ -154,9 +179,9 @@ deriveJSON defaultOptions ''ConfigFile
 data ConfigFileOperation
     = AddInitialTimer Timer Int
     | ToggleStartStopSound
-    | SetTasksFilePath FilePath
     | ToggleTimerPopupAlert
     | AddSoundVolume (Lens' ConfigFile ConfigSetting) Int
+    | SetFilePathSetting (Lens' ConfigFile ConfigSetting) ConfigSettingValue
 
 deriveJSON defaultOptions ''Audio
 
@@ -177,5 +202,9 @@ data AppState = AppState
     , _alertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     , _currentTimerTickSoundVolume :: Int
     , _timerTickSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
+    , _notificationProvider :: Maybe NotificationProvider
+    , _audioProvider :: Maybe AudioProvider
+    , _audioDirectoryPath :: FilePath
+    , _audioDirectoryPathBrowser :: FileBrowser Name
     }
 makeLenses ''AppState

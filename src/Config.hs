@@ -3,6 +3,7 @@
 
 module Config (
     createConfigFileIfNotExists,
+    createAudioDirectoryIfNotExists,
     readConfig,
     readTasksFilePath,
     readInitialTimer,
@@ -10,6 +11,7 @@ module Config (
     readTimerPopupAlert,
     readAlertSoundVolume,
     readTimerTickSoundVolume,
+    readAudioDirectoryPath,
     updateConfig,
     configFileSettings,
     configSettingsValueToString,
@@ -19,7 +21,7 @@ module Config (
     configBoolValue,
     findConfigSetting,
     showBool,
-    soundVolumePercentage,
+    configFilePathValue,
 )
 where
 
@@ -30,9 +32,10 @@ import Control.Monad (unless)
 import Data.Aeson (decode, encode)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.List (find)
-import Resources (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerAlertSoundVolume, timerPopupAlert, timerTickSoundVolume)
+import System.Directory (createDirectoryIfMissing)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
+import Types (ConfigFile (..), ConfigFileOperation (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), audioDirectoryPathSetting, configValue, longBreakInitialTimer, pomodoroInitialTimer, shortBreakInitialTimer, startStopSound, tasksFilePath, timerAlertSoundVolume, timerPopupAlert, timerTickSoundVolume)
 import UI.Timer (formatTimer)
 
 defaultConfig :: IO ConfigFile
@@ -48,6 +51,7 @@ defaultConfig = do
             , _timerPopupAlert = ConfigSetting{_configLabel = "Timer popup alert", _configValue = ConfigTimerPopupAlert True}
             , _timerAlertSoundVolume = ConfigSetting{_configLabel = "Timer alert sound volume", _configValue = ConfigTimerAlertSoundVolume 60}
             , _timerTickSoundVolume = ConfigSetting{_configLabel = "Timer tick sound volume", _configValue = ConfigTimerTickSoundVolume 60}
+            , _audioDirectoryPathSetting = ConfigSetting{_configLabel = "Audio directory path", _configValue = ConfigAudioDirectoryPath $ xdgDataPath FP.</> "homodoro" FP.</> "audio"}
             }
 
 createConfigFileIfNotExists :: IO ()
@@ -62,6 +66,11 @@ xdgConfigFilePath :: IO FilePath
 xdgConfigFilePath = do
     xdgConfigPath <- D.getXdgDirectory D.XdgConfig ""
     pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
+
+createAudioDirectoryIfNotExists :: IO ()
+createAudioDirectoryIfNotExists = do
+    directoryPath <- readAudioDirectoryPath
+    createDirectoryIfMissing True directoryPath
 
 updateConfig :: ConfigFileOperation -> IO ConfigFile
 updateConfig ToggleStartStopSound = updateBoolConfig startStopSound
@@ -78,19 +87,23 @@ updateConfig (AddInitialTimer timer time) = do
         Pomodoro -> pomodoroInitialTimer . configValue
         ShortBreak -> shortBreakInitialTimer . configValue
         LongBreak -> longBreakInitialTimer . configValue
-updateConfig (SetTasksFilePath fp) = do
+updateConfig (SetFilePathSetting settingL filePathSetting) = do
     configFile <- readConfig
-    let updatedConfigFile = configFile & tasksFilePath . configValue .~ ConfigTasksFilePath fp
-    writeConfig updatedConfigFile
-    return updatedConfigFile
-updateConfig (AddSoundVolume alertSoundVolumeL volStep) = do
-    configFile <- readConfig
-    let updatedConfigFile = configFile & alertSoundVolumeL . configValue %~ addSoundVolumeStep
+    let updatedConfigFile = configFile & settingL . configValue .~ setConfigFilePath filePathSetting
     writeConfig updatedConfigFile
     return updatedConfigFile
   where
-    addSoundVolumeStep (ConfigTimerAlertSoundVolume val) = ConfigTimerAlertSoundVolume (min (max (val + volStep) 0) 128)
-    addSoundVolumeStep (ConfigTimerTickSoundVolume val) = ConfigTimerTickSoundVolume (min (max (val + volStep) 0) 128)
+    setConfigFilePath (ConfigTasksFilePath val) = ConfigTasksFilePath val
+    setConfigFilePath (ConfigAudioDirectoryPath val) = ConfigAudioDirectoryPath val
+    setConfigFilePath val = val
+updateConfig (AddSoundVolume settingL volStep) = do
+    configFile <- readConfig
+    let updatedConfigFile = configFile & settingL . configValue %~ addSoundVolumeStep
+    writeConfig updatedConfigFile
+    return updatedConfigFile
+  where
+    addSoundVolumeStep (ConfigTimerAlertSoundVolume val) = ConfigTimerAlertSoundVolume (min (max (val + volStep) 0) 100)
+    addSoundVolumeStep (ConfigTimerTickSoundVolume val) = ConfigTimerTickSoundVolume (min (max (val + volStep) 0) 100)
     addSoundVolumeStep val = val
 
 updateBoolConfig :: Lens' ConfigFile ConfigSetting -> IO ConfigFile
@@ -120,6 +133,11 @@ readTasksFilePath :: IO FilePath
 readTasksFilePath = do
     configFile <- readConfig
     return $ configFilePathValue $ configFile ^. tasksFilePath
+
+readAudioDirectoryPath :: IO FilePath
+readAudioDirectoryPath = do
+    configFile <- readConfig
+    return $ configFilePathValue $ configFile ^. audioDirectoryPathSetting
 
 defaultTasksFilePathIO :: IO FilePath
 defaultTasksFilePathIO = do
@@ -165,6 +183,7 @@ configFileSettings configFile =
     , configFile ^. startStopSound
     , configFile ^. timerPopupAlert
     , configFile ^. tasksFilePath
+    , configFile ^. audioDirectoryPathSetting
     ]
 
 findConfigSetting :: ConfigSettingValue -> [ConfigSetting] -> Maybe ConfigSetting
@@ -183,8 +202,9 @@ configSettingsValueToString (ConfigInitialTimer _ i) = formatTimer i
 configSettingsValueToString (ConfigTimerStartStopSound b) = showBool b
 configSettingsValueToString (ConfigTasksFilePath p) = show p
 configSettingsValueToString (ConfigTimerPopupAlert b) = showBool b
-configSettingsValueToString (ConfigTimerAlertSoundVolume vol) = soundVolumePercentage vol
-configSettingsValueToString (ConfigTimerTickSoundVolume vol) = soundVolumePercentage vol
+configSettingsValueToString (ConfigTimerAlertSoundVolume vol) = show vol
+configSettingsValueToString (ConfigTimerTickSoundVolume vol) = show vol
+configSettingsValueToString (ConfigAudioDirectoryPath p) = show p
 
 showBool :: Bool -> String
 showBool true = if true then "Enabled" else "Disabled"
@@ -203,6 +223,7 @@ configIntValue _ = 0
 
 configFilePathValue :: ConfigSetting -> FilePath
 configFilePathValue (ConfigSetting _ (ConfigTasksFilePath path)) = path
+configFilePathValue (ConfigSetting _ (ConfigAudioDirectoryPath path)) = path
 configFilePathValue _ = FP.empty
 
 maybeConfigBoolValue :: Maybe ConfigSetting -> Bool
@@ -214,6 +235,3 @@ configBoolValue :: ConfigSetting -> Bool
 configBoolValue (ConfigSetting _ (ConfigTimerPopupAlert value)) = value
 configBoolValue (ConfigSetting _ (ConfigTimerStartStopSound value)) = value
 configBoolValue _ = False
-
-soundVolumePercentage :: Int -> String
-soundVolumePercentage vol = show (round ((fromIntegral vol / 128 :: Double) * 100) :: Int) ++ "%"

@@ -5,9 +5,9 @@ module UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog, so
 import Brick (Widget, hBox, padLeftRight, txt, vLimit, withAttr, vBox, padTop, Padding (..), (<=>), padBottom, str)
 import Brick.Widgets.Core (fill)
 import qualified Brick.Widgets.List as BL
-import Config (configSettingsValueToString, soundVolumePercentage)
+import Config (configSettingsValueToString)
 import Control.Lens ((^.))
-import Resources (ConfigSetting, Name, configLabel, configValue, Timer (..), InitialTimerDialogChoice (CloseInitialTimerDialog), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio))
+import Types (ConfigSetting, Name, configLabel, configValue, Timer (..), InitialTimerDialogChoice (CloseInitialTimerDialog), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio))
 import UI.Attributes (selectedConfigAttr, timerAttr, blackOnWhiteAttr)
 import Brick.Widgets.Dialog (Dialog, dialog)
 import qualified Brick.Widgets.Center as C
@@ -61,7 +61,7 @@ drawSoundVolumeDialog title vol =
     vBox
         [ padTop (Pad 1) $
             C.hCenter (str title)
-                <=> C.hCenter (withAttr blackOnWhiteAttr (padLeftRight 1 $ str $ soundVolumePercentage vol))
+                <=> C.hCenter (withAttr blackOnWhiteAttr (padLeftRight 1 $ str $ show vol))
         , C.hCenter $ padTop (Pad 1) $ txt "[Up arrow] - Increase by 5"
         , C.hCenter $ padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 5"
         ]

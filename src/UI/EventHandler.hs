@@ -6,15 +6,14 @@ module UI.EventHandler (handleEvent) where
 import Brick (BrickEvent (AppEvent, VtyEvent), EventM, halt, zoom)
 import Brick.Widgets.Dialog (dialogSelection, handleDialogEvent)
 import Brick.Widgets.Edit (editor, getEditContents, handleEditorEvent)
-import Config (configFileSettings, readInitialTimer, updateConfig, readTimerPopupAlert, readStartStopSound, readAlertSoundVolume, findConfigSetting, maybeConfigIntValue)
+import Config (configFileSettings, readInitialTimer, updateConfig, readTimerPopupAlert, readStartStopSound, readAlertSoundVolume, findConfigSetting, maybeConfigIntValue, readConfig, configFilePathValue)
 import Control.Concurrent (forkIO)
 import Control.Lens ((.=), (^.), Lens', uses)
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
-import Notify ( alertRoundEnded, playAudio )
-import Resources (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), configList, configValue, focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, pomodoroCounter, pomodoroCyclesCounter, tasksFilePathBrowser, initialTimerConfigDialog, Task, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), alertSoundVolumeConfigDialog, currentAlertSoundVolume, timerAlertSoundVolume, timerTickSoundVolumeConfigDialog, currentTimerTickSoundVolume, timerTickSoundVolume, ConfigFile)
+import Types (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), configList, configValue, focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, pomodoroCounter, pomodoroCyclesCounter, tasksFilePathBrowser, initialTimerConfigDialog, Task, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), alertSoundVolumeConfigDialog, currentAlertSoundVolume, timerAlertSoundVolume, timerTickSoundVolumeConfigDialog, currentTimerTickSoundVolume, timerTickSoundVolume, ConfigFile, NotificationProvider (NotifySend, Zenity), notificationProvider, AudioProvider (MPV, FFPlay), audioProvider, audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, tasksFilePath)
 import Task (mkTask, taskExists, updateTaskList, readTasks)
 import UI.Util (changeFocus)
-import Brick.Widgets.FileBrowser (handleFileBrowserEvent, fileBrowserIsSearching, fileBrowserCursor, FileInfo (fileInfoFilePath, fileInfoFileStatus), FileType (RegularFile), FileStatus (fileStatusFileType))
+import Brick.Widgets.FileBrowser (handleFileBrowserEvent, fileBrowserIsSearching, fileBrowserCursor, FileInfo (fileInfoFilePath, fileInfoFileStatus), FileType (RegularFile, Directory), FileStatus (fileStatusFileType), getWorkingDirectory)
 import UI.Config ( initialTimerDialog, soundVolumeDialog )
 import Brick.Widgets.List
     ( handleListEventVi, listReplace, listSelectedElement, GenericList (listSelected), handleListEvent )
@@ -23,6 +22,11 @@ import Graphics.Vty (Event(EvKey), Key (..), Modifier (..))
 import Brick.Focus (focusGetCurrent)
 import Prelude hiding (null, unlines)
 import Data.Text (unlines, Text, null)
+import Data.List (find)
+import Data.Char (toLower)
+import Process (callNotificationProvider, callAudioProvider)
+import System.Directory (listDirectory)
+import System.FilePath (takeBaseName, (</>))
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -32,9 +36,11 @@ handleEvent ev = do
         (AppEvent Tick) -> do
             case currentFocus of
                 Just (TaskList timer) -> do
+                    currentAlertSoundVolumeConfig <- liftIO readAlertSoundVolume
+                    timerEndedPopupAlertIsActive <- liftIO readTimerPopupAlert
                     case timer of
                         Pomodoro -> do
-                            handleTimerTick s pomodoroTimer (s ^. currentTimerTickSoundVolume) "Pomodoro round ended!" timer $ do
+                            handleTimerTick s pomodoroTimer (s ^. currentTimerTickSoundVolume) "Pomodoro round ended!" timer currentAlertSoundVolumeConfig timerEndedPopupAlertIsActive $ do
                                 pomodoroCounter .= (s ^. pomodoroCounter) + 1
                                 pomodoroCyclesCounter .= (s ^. pomodoroCyclesCounter) + 1
                                 updatedCycleCounter <- uses pomodoroCyclesCounter id
@@ -43,10 +49,10 @@ handleEvent ev = do
                                         changeFocus (TaskList LongBreak) s
                                     else changeFocus (TaskList ShortBreak) s
                         ShortBreak -> do
-                            handleTimerTick s shortBreakTimer (s ^. currentTimerTickSoundVolume) "Short break ended!" timer $ do
+                            handleTimerTick s shortBreakTimer (s ^. currentTimerTickSoundVolume) "Short break ended!" timer currentAlertSoundVolumeConfig timerEndedPopupAlertIsActive $ do
                                 changeFocus (TaskList Pomodoro) s
                         LongBreak -> do
-                            handleTimerTick s longBreakTimer (s ^. currentTimerTickSoundVolume) "Long break ended!" timer $ do
+                            handleTimerTick s longBreakTimer (s ^. currentTimerTickSoundVolume) "Long break ended!" timer currentAlertSoundVolumeConfig timerEndedPopupAlertIsActive $ do
                                 changeFocus (TaskList Pomodoro) s
                                 pomodoroCyclesCounter .= 0
                 _ -> return ()
@@ -90,7 +96,7 @@ handleEvent ev = do
                             startStopSoundActive <- liftIO readStartStopSound
                             currentSoundVolumeConfig <- liftIO readAlertSoundVolume
                             when startStopSoundActive $ do
-                                _ <- liftIO $ forkIO $ playAudio (if s ^. timerRunning then Stop else Start) currentSoundVolumeConfig
+                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) (if s ^. timerRunning then TimerStop else TimerStart) currentSoundVolumeConfig
                                 return ()
                             timerRunning .= not (s ^. timerRunning)
                         (KChar 'r', []) -> do
@@ -141,6 +147,8 @@ handleEvent ev = do
                                     currentSoundVolumeConfig <- liftIO readAlertSoundVolume
                                     alertSoundVolumeConfigDialog .= soundVolumeDialog (Just "Timer tick sound volume") (Just currentSoundVolumeConfig)
                                     changeFocus TimerTickSoundVolumeDialog s
+                                ConfigAudioDirectoryPath _ -> do
+                                    changeFocus AudioDirectoryPathBrowser s
                         _ -> zoom configList $ handleListEventVi handleListEvent vev
                 Just (InitialTimerDialog timer) -> do
                     case (k, ms) of
@@ -167,33 +175,59 @@ handleEvent ev = do
                                 case fileBrowserCursor (s ^. tasksFilePathBrowser) of
                                     Just fileInfo -> do
                                         if fileType fileInfo == Just RegularFile then do
-                                            handleConfigUpdate (SetTasksFilePath (fileInfoFilePath fileInfo))
-                                                $ \updatedConfigSettings -> do
-                                                updateConfigList s configList updatedConfigSettings
+                                            handleConfigUpdate (SetFilePathSetting tasksFilePath (ConfigTasksFilePath $ fileInfoFilePath fileInfo))
+                                                $ \updatedConfigFile -> do
+                                                updateConfigList s configList updatedConfigFile
                                                 changeFocus Config s
-                                                updatedTasks <- liftIO readTasks
-                                                taskList .= listReplace (fromList updatedTasks) (listSelected $ s ^. taskList) (s ^. taskList)
+                                                newTaskFile <- liftIO readTasks
+                                                taskList .= listReplace (fromList newTaskFile) (listSelected $ s ^. taskList) (s ^. taskList)
                                         else
                                             zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
                                     Nothing -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
                                 return ()
                             _ -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
                     else zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
+                Just AudioDirectoryPathBrowser -> do
+                    if not $ fileBrowserIsSearching (s ^. audioDirectoryPathBrowser) then do
+                        case (k, ms) of
+                            (KEsc, []) -> changeFocus Config s
+                            (KChar 'q', []) -> changeFocus Config s
+                            (KChar 'C', []) -> do
+                                handleConfigUpdate (SetFilePathSetting audioDirectoryPathSetting (ConfigAudioDirectoryPath $ getWorkingDirectory (s ^. audioDirectoryPathBrowser)))
+                                    $ \updatedConfigFile -> do
+                                    updateConfigList s configList updatedConfigFile
+                                    changeFocus Config s
+                                    audioDirectoryPath .= configFilePathValue (updatedConfigFile ^. audioDirectoryPathSetting)
+                            (KChar 'c', []) -> do
+                                case fileBrowserCursor (s ^. audioDirectoryPathBrowser) of
+                                    Just fileInfo -> do
+                                        if fileType fileInfo == Just Directory then do
+                                            handleConfigUpdate (SetFilePathSetting audioDirectoryPathSetting (ConfigAudioDirectoryPath $ fileInfoFilePath fileInfo))
+                                                $ \updatedConfigFile -> do
+                                                updateConfigList s configList updatedConfigFile
+                                                changeFocus Config s
+                                                audioDirectoryPath .= configFilePathValue (updatedConfigFile ^. audioDirectoryPathSetting)
+                                        else
+                                            zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                                    Nothing -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                                return ()
+                            _ -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                    else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
                 Just TimerAlertSoundVolumeDialog -> do
                     case (k, ms) of
                         (KUp, []) -> do
-                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolume 4)
+                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolume 5)
                                 $ \updatedConfigSettings -> do
                                     updateConfigList s configList updatedConfigSettings
                                     currentAlertSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerAlertSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KDown, []) -> do
-                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolume $ -4)
+                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolume $ -5)
                                 $ \updatedConfigSettings -> do
                                     updateConfigList s configList updatedConfigSettings
                                     currentAlertSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerAlertSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KEnter, []) -> case dialogSelection (s ^. alertSoundVolumeConfigDialog) of
                             Just PlayTestAudio -> do
-                                _ <- liftIO $ forkIO $ playAudio TimerEnded (s ^. currentAlertSoundVolume)
+                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerEnded (s ^. currentAlertSoundVolume)
                                 return ()
                             Just CloseSoundVolumeDialog -> changeFocus Config s
                             _ -> return ()
@@ -203,18 +237,18 @@ handleEvent ev = do
                 Just TimerTickSoundVolumeDialog -> do
                     case (k, ms) of
                         (KUp, []) ->
-                            handleConfigUpdate (AddSoundVolume timerTickSoundVolume 4)
+                            handleConfigUpdate (AddSoundVolume timerTickSoundVolume 5)
                                 $ \updatedConfigSettings -> do
                                     updateConfigList s configList updatedConfigSettings
                                     currentTimerTickSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerAlertSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KDown, []) -> do
-                            handleConfigUpdate (AddSoundVolume timerTickSoundVolume $ -4)
+                            handleConfigUpdate (AddSoundVolume timerTickSoundVolume $ -5)
                                 $ \updatedConfigSettings -> do
                                     updateConfigList s configList updatedConfigSettings
                                     currentTimerTickSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerTickSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KEnter, []) -> case dialogSelection (s ^. timerTickSoundVolumeConfigDialog) of
                             Just PlayTestAudio -> do
-                                _ <- liftIO $ forkIO $ playAudio TimerTick (s ^. currentTimerTickSoundVolume)
+                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath)  TimerTick (s ^. currentTimerTickSoundVolume)
                                 return ()
                             Just CloseSoundVolumeDialog -> changeFocus Config s
                             _ -> return ()
@@ -226,14 +260,25 @@ handleEvent ev = do
         where updateConfigList s configListL updatedConfigSettings = do
                 configListL .= listReplace (fromList $ configFileSettings updatedConfigSettings) (listSelected $ s ^. configList) (s ^. configList)
 
-handleTimerTick :: AppState -> Lens' AppState Int -> Int -> String -> Timer -> EventM Name AppState () -> EventM Name AppState ()
-handleTimerTick s timerL tickSoundVolume popupText timer afterTickF = do
+handleTimerTick ::
+    AppState
+    -> Lens' AppState Int
+    -> Int
+    -> String
+    -> Timer
+    -> Int
+    -> Bool
+    -> EventM Name AppState ()
+    -> EventM Name AppState ()
+handleTimerTick s timerL tickSoundVolume popupText timer alertSoundVolume timerEndedNotificationAlertIsActive afterTickF = do
     when (s ^. timerRunning) $ do
-        tickTimer timerL (s ^. timerL) tickSoundVolume
+        tickTimer (s ^. audioProvider) (s ^. audioDirectoryPath) timerL (s ^. timerL) tickSoundVolume
         when (s ^. timerL == 0) $ do
             stopTimer
-            playTimerEndedAudioAlert
-            showTimerEndedPopupAlert popupText
+            when (alertSoundVolume > 0) $ do
+                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerEnded alertSoundVolume
+                return ()
+            alertRoundEnded (s ^. notificationProvider) popupText timerEndedNotificationAlertIsActive
             resetTimer timerL timer
             afterTickF
 
@@ -247,29 +292,15 @@ fileType fileInfo = case fileInfoFileStatus fileInfo of
     Left _ -> Nothing
     Right fileStatus -> fileStatusFileType fileStatus
 
-tickTimer :: Lens' AppState Int -> Int -> Int -> EventM Name AppState ()
-tickTimer timerL timerValue tickVolume = do 
+tickTimer :: Maybe AudioProvider -> FilePath -> Lens' AppState Int -> Int -> Int -> EventM Name AppState ()
+tickTimer sAudioProvider sAudioDirectoryPath timerL timerValue tickVolume = do
     when (tickVolume > 0 && timerValue > 0) $ do
-       _ <- liftIO $ forkIO $ playAudio TimerTick tickVolume
+       _ <- liftIO $ forkIO $ playAudio sAudioProvider sAudioDirectoryPath  TimerTick tickVolume
        return ()
     timerL .= max (timerValue - 1) 0
 
 stopTimer :: EventM Name AppState ()
 stopTimer = timerRunning .= False
-
-playTimerEndedAudioAlert :: EventM Name AppState ()
-playTimerEndedAudioAlert  = do
-    currentSoundVolumeConfig <- liftIO readAlertSoundVolume
-    when (currentSoundVolumeConfig > 0) $ do
-        _ <- liftIO $ forkIO $ playAudio TimerEnded currentSoundVolumeConfig
-        return ()
-
-showTimerEndedPopupAlert :: String -> EventM Name AppState ()
-showTimerEndedPopupAlert msg = do
-    timerEndedPopupAlertIsActive <- liftIO readTimerPopupAlert
-    when timerEndedPopupAlertIsActive $ do
-        alertRoundEnded msg
-        return ()
 
 resetTimer :: Lens' AppState Int -> Timer -> EventM Name AppState ()
 resetTimer timer currentTimer = do
@@ -291,3 +322,29 @@ saveTask taskEditorContent selectedTask action s = do
         else do
             taskEditor .= editor (TaskEdit action) (Just 5) ""
             changeFocus (TaskList Pomodoro) s
+
+alertRoundEnded :: Maybe NotificationProvider -> String -> Bool -> EventM Name AppState ()
+alertRoundEnded nftp alertMsg timerEndedNotificationIsActive
+    | timerEndedNotificationIsActive = do
+    liftIO $ maybe (return ())
+        (\jnftp -> do
+            let args = case jnftp of
+                    NotifySend -> "-a homodoro \"" <> alertMsg <> "\""
+                    Zenity -> "--title=homodoro --text=" <> alertMsg
+            callNotificationProvider jnftp args)
+        nftp
+    | otherwise = return ()
+
+playAudio :: Maybe AudioProvider -> FilePath -> Audio -> Int -> IO ()
+playAudio ap currentAudioDirectoryPath audio vol = do
+    filesInDir <- listDirectory currentAudioDirectoryPath
+    case find (\file -> map toLower (takeBaseName file) == map toLower (show audio)) filesInDir of
+        Just audioFileName ->
+            maybe (return ())
+            (\jap -> do
+                let args = case jap of
+                        MPV -> currentAudioDirectoryPath </> audioFileName <> " --volume=" <> show vol
+                        FFPlay -> ""
+                callAudioProvider jap args)
+            ap
+        Nothing -> return ()

@@ -11,7 +11,7 @@ import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
 import Control.Lens ((^.))
-import Resources (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer, timerRunning)
+import Types (AppState, Name (TaskList), Timer (LongBreak, Pomodoro, ShortBreak), focus, longBreakTimer, pomodoroCounter, pomodoroTimer, shortBreakTimer, timerRunning)
 import Text.Printf (printf)
 import UI.Attributes (selectedTimerAttr, timerAttr)
 

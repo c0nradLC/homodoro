@@ -21,9 +21,14 @@ import Brick.Widgets.Dialog (renderDialog)
 import Brick.Widgets.Edit (
     editor,
  )
-import Brick.Widgets.FileBrowser
+import Brick.Widgets.FileBrowser (
+    newFileBrowser,
+    renderFileBrowser,
+    selectDirectories,
+    selectNonDirectories,
+ )
 import qualified Brick.Widgets.List as BL
-import Config (configFileSettings, createConfigFileIfNotExists, findConfigSetting, maybeConfigBoolValue, maybeConfigIntValue, readAlertSoundVolume, readConfig, readInitialTimer, readTasksFilePath, readTimerTickSoundVolume, showBool, soundVolumePercentage)
+import Config (configFileSettings, createAudioDirectoryIfNotExists, createConfigFileIfNotExists, findConfigSetting, maybeConfigBoolValue, maybeConfigIntValue, readAlertSoundVolume, readAudioDirectoryPath, readConfig, readInitialTimer, readTasksFilePath, readTimerTickSoundVolume, showBool)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
@@ -32,7 +37,9 @@ import Control.Monad.State (
  )
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
-import Resources (
+import Process (getAudioProvider, getNotificationProvider)
+import Task (createTasksFileIfNotExists, readTasks)
+import Types (
     AppState (..),
     ConfigSettingValue (..),
     Name (..),
@@ -40,6 +47,7 @@ import Resources (
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
     alertSoundVolumeConfigDialog,
+    audioDirectoryPathBrowser,
     configList,
     currentAlertSoundVolume,
     currentTimerTickSoundVolume,
@@ -49,7 +57,6 @@ import Resources (
     tasksFilePathBrowser,
     timerTickSoundVolumeConfigDialog,
  )
-import Task (createTasksFileIfNotExists, readTasks)
 import UI.Attributes (
     attributes,
  )
@@ -73,6 +80,7 @@ uiMain = do
 createAppState :: IO AppState
 createAppState = do
     createTasksFileIfNotExists
+    createAudioDirectoryIfNotExists
     tasks <- readTasks
     configFile <- readConfig
     setPomodoroInitialTimer <- readInitialTimer Pomodoro
@@ -80,8 +88,12 @@ createAppState = do
     setLongBreakInitialTimer <- readInitialTimer LongBreak
     tasksFilePath <- readTasksFilePath
     initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just tasksFilePath
+    setAudioDirectoryPath <- readAudioDirectoryPath
+    initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
     setAlertSoundVolume <- readAlertSoundVolume
     setTimerTickSoundVolume <- readTimerTickSoundVolume
+    availableNotificationProvider <- getNotificationProvider
+    availableAudioProvider <- getAudioProvider
     return
         AppState
             { _timerRunning = False
@@ -105,6 +117,7 @@ createAppState = do
                     , TasksFilePathBrowser
                     , TimerAlertSoundVolumeDialog
                     , TimerTickSoundVolumeDialog
+                    , AudioDirectoryPathBrowser
                     ]
             , _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
             , _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1
@@ -114,6 +127,10 @@ createAppState = do
             , _alertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume") $ Just setAlertSoundVolume
             , _currentTimerTickSoundVolume = setTimerTickSoundVolume
             , _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume") $ Just setTimerTickSoundVolume
+            , _notificationProvider = availableNotificationProvider
+            , _audioProvider = availableAudioProvider
+            , _audioDirectoryPath = setAudioDirectoryPath
+            , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
             }
 
 app :: App AppState Tick Name
@@ -175,28 +192,39 @@ drawUI s = do
                             <=> drawCommands currentFocus
                     )
                 ]
+        currentFocus@(Just AudioDirectoryPathBrowser) -> do
+            [ B.border
+                    ( C.center $
+                        drawConfigList (s ^. configList)
+                            <=> B.border (renderFileBrowser True (s ^. audioDirectoryPathBrowser))
+                            <=> drawCommands currentFocus
+                    )
+                ]
         currentFocus -> do
             [B.border (C.center $ drawHeader (s ^. currentAlertSoundVolume) (s ^. currentTimerTickSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
     configListL = DV.toList $ BL.listElements (s ^. configList)
     drawCommands currentFocus =
         case currentFocus of
-            Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [Ins]: create task"
-            Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [Ins]: save task"
+            Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [INS]: create task"
+            Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [INS]: save task"
             Just (TaskList _) ->
                 strWrap
-                    "[Q]: quit, [S]: Start/Stop, [R]: reset, [Shift + Tab]: next timer, \
+                    "[Q]: quit, [S]: Start/Stop, [R]: reset, [SHIFT + TAB]: next timer, \
                     \[T]: add task, [E]: edit task, [Ctrl + C]: toggle task status, \
                     \[P]: config menu"
             Just Config -> str "[ESC|Q]: return, [ENTER]: select/toggle setting"
             Just TasksFilePathBrowser ->
                 strWrap
-                    "[ESC|Q]: close, [ENTER]: select entry, [/]: search"
+                    "[ESC|Q]: close, [ENTER]: choose selection, [/]: search"
+            Just AudioDirectoryPathBrowser ->
+                strWrap
+                    "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
             _ -> emptyWidget
     drawHeader alertVolume timerTickVolume = do
         let popupEnabled = maybeConfigBoolValue $ findConfigSetting (ConfigTimerPopupAlert False) configListL
          in str ("Timer popup: " ++ showBool popupEnabled)
-                <=> (if timerTickVolume > 0 then str ("Timer tick volume: " ++ soundVolumePercentage timerTickVolume) else emptyWidget)
+                <=> (if timerTickVolume > 0 then str ("Timer tick volume: " ++ show timerTickVolume) else emptyWidget)
                 <=> if alertVolume > 0
-                    then str ("Timer alert volume: " ++ soundVolumePercentage alertVolume)
+                    then str ("Timer alert volume: " ++ show alertVolume)
                     else emptyWidget

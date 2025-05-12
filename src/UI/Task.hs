@@ -10,14 +10,14 @@ import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Edit (renderEditor)
 import qualified Brick.Widgets.List as BL
 import Control.Lens ( (^.) )
-import Resources
+import Types
     ( taskEditor,
       focus,
       TaskAction(Edit, Insert),
       Task,
       AppState,
       Name(TaskEdit) )
-import qualified Resources as R
+import qualified Types as R
 import UI.Attributes (selectedTaskAttr, taskCompletedLabelAttr, taskCompletedWhiteBgLabelAttr, taskPendingLabelAttr, taskPendingWhiteBgLabelAttr)
 import Data.Text (Text, unlines)
 import Prelude hiding (unlines)

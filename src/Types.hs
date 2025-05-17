@@ -33,19 +33,20 @@ module Types (
     taskCompleted,
     configLabel,
     configValue,
-    pomodoroInitialTimer,
-    shortBreakInitialTimer,
-    longBreakInitialTimer,
+    pomodoroInitialTimerSetting,
+    shortBreakInitialTimerSetting,
+    longBreakInitialTimerSetting,
     tasksFilePath,
-    startStopSound,
-    timerPopupAlert,
+    tasksFilePathSetting,
+    startStopSoundSetting,
+    timerPopupAlertSetting,
     initialTimerConfigDialog,
     tasksFilePathBrowser,
+    timerAlertSoundVolumeSetting,
     timerAlertSoundVolume,
-    currentAlertSoundVolume,
-    alertSoundVolumeConfigDialog,
-    currentTimerTickSoundVolume,
+    timerAlertSoundVolumeConfigDialog,
     timerTickSoundVolume,
+    timerTickSoundVolumeSetting,
     timerTickSoundVolumeConfigDialog,
     notificationProvider,
     audioProvider,
@@ -69,7 +70,6 @@ data Timer
     | ShortBreak
     | LongBreak
     deriving (Show, Eq, Ord)
-
 deriveJSON defaultOptions ''Timer
 
 data InitialTimerDialogChoice
@@ -102,7 +102,6 @@ data Audio
     | TimerTick
     | TimerStart
     | TimerStop
-    | None
     deriving (Show, Eq)
 
 data AudioProvider
@@ -162,14 +161,14 @@ makeLenses ''ConfigSetting
 deriveJSON defaultOptions ''ConfigSetting
 
 data ConfigFile = ConfigFile
-    { _pomodoroInitialTimer :: ConfigSetting
-    , _shortBreakInitialTimer :: ConfigSetting
-    , _longBreakInitialTimer :: ConfigSetting
-    , _startStopSound :: ConfigSetting
-    , _tasksFilePath :: ConfigSetting
-    , _timerPopupAlert :: ConfigSetting
-    , _timerAlertSoundVolume :: ConfigSetting
-    , _timerTickSoundVolume :: ConfigSetting
+    { _pomodoroInitialTimerSetting :: ConfigSetting
+    , _shortBreakInitialTimerSetting :: ConfigSetting
+    , _longBreakInitialTimerSetting :: ConfigSetting
+    , _startStopSoundSetting :: ConfigSetting
+    , _tasksFilePathSetting :: ConfigSetting
+    , _timerPopupAlertSetting :: ConfigSetting
+    , _timerAlertSoundVolumeSetting :: ConfigSetting
+    , _timerTickSoundVolumeSetting :: ConfigSetting
     , _audioDirectoryPathSetting :: ConfigSetting
     }
     deriving (Show, Eq)
@@ -197,10 +196,11 @@ data AppState = AppState
     , _focus :: BF.FocusRing Name
     , _configList :: BL.List Name ConfigSetting
     , _initialTimerConfigDialog :: Dialog InitialTimerDialogChoice
+    , _tasksFilePath :: FilePath
     , _tasksFilePathBrowser :: FileBrowser Name
-    , _currentAlertSoundVolume :: Int
-    , _alertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
-    , _currentTimerTickSoundVolume :: Int
+    , _timerAlertSoundVolume :: Int
+    , _timerAlertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
+    , _timerTickSoundVolume :: Int
     , _timerTickSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     , _notificationProvider :: Maybe NotificationProvider
     , _audioProvider :: Maybe AudioProvider

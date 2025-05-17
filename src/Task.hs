@@ -45,24 +45,24 @@ updateTaskList tlop = do
 
 writeTasks :: [Task] -> IO [Task]
 writeTasks tasks = do
-    tasksFilePath <- readTasksFilePath
-    case takeExtension tasksFilePath of
-        ".json" -> TIO.writeFile tasksFilePath $ TL.toStrict $ encodeToLazyText tasks
-        ".md" -> TIO.writeFile tasksFilePath $ encodeMarkdownTasks tasks
+    tasksFilePathSetting <- readTasksFilePath
+    case takeExtension tasksFilePathSetting of
+        ".json" -> TIO.writeFile tasksFilePathSetting $ TL.toStrict $ encodeToLazyText tasks
+        ".md" -> TIO.writeFile tasksFilePathSetting $ encodeMarkdownTasks tasks
         _ -> return ()
     return tasks
 
 readTasks :: IO [Task]
 readTasks = do
-    tasksFilePath <- readTasksFilePath
-    case takeExtension tasksFilePath of
+    tasksFilePathSetting <- readTasksFilePath
+    case takeExtension tasksFilePathSetting of
         ".json" -> do
-            tasksFromFile <- TIO.readFile tasksFilePath
+            tasksFromFile <- TIO.readFile tasksFilePathSetting
             case decodeStrict $ encodeUtf8 tasksFromFile of
                 Just tasks -> return tasks
                 Nothing -> return []
         ".md" -> do
-            tasksFromFile <- TIO.readFile tasksFilePath
+            tasksFromFile <- TIO.readFile tasksFilePathSetting
             return $ decodeMarkdownTasks tasksFromFile
         _ -> return []
 

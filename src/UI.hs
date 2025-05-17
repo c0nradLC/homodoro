@@ -24,11 +24,10 @@ import Brick.Widgets.Edit (
 import Brick.Widgets.FileBrowser (
     newFileBrowser,
     renderFileBrowser,
-    selectDirectories,
     selectNonDirectories,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configFileSettings, createAudioDirectoryIfNotExists, createConfigFileIfNotExists, findConfigSetting, maybeConfigBoolValue, maybeConfigIntValue, readAlertSoundVolume, readAudioDirectoryPath, readConfig, readInitialTimer, readTasksFilePath, readTimerTickSoundVolume, showBool)
+import Config (configFileSettings, createProgramFileAndDirectoriesIfNotExists, findConfigSetting, maybeConfigBoolValue, maybeConfigIntValue, readAlertSoundVolume, readAudioDirectoryPath, readConfig, readInitialTimer, readTasksFilePath, readTimerTickSoundVolume, showBool)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
@@ -38,7 +37,7 @@ import Control.Monad.State (
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
 import Process (getAudioProvider, getNotificationProvider)
-import Task (createTasksFileIfNotExists, readTasks)
+import Task (readTasks)
 import Types (
     AppState (..),
     ConfigSettingValue (..),
@@ -46,15 +45,15 @@ import Types (
     TaskAction (Edit, Insert),
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
-    alertSoundVolumeConfigDialog,
     audioDirectoryPathBrowser,
     configList,
-    currentAlertSoundVolume,
-    currentTimerTickSoundVolume,
     focus,
     initialTimerConfigDialog,
     taskList,
     tasksFilePathBrowser,
+    timerAlertSoundVolume,
+    timerAlertSoundVolumeConfigDialog,
+    timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
  )
 import UI.Attributes (
@@ -62,13 +61,13 @@ import UI.Attributes (
  )
 import UI.Config (drawConfigList, drawInitialTimerDialog, drawSoundVolumeDialog, initialTimerDialog, soundVolumeDialog)
 import UI.EventHandler (handleEvent)
-import UI.Task
+import UI.Task (drawTaskEditor, drawTaskList)
 import UI.Timer (drawTimers)
 
 uiMain :: IO ()
 uiMain = do
     eventChan <- newBChan 10
-    createConfigFileIfNotExists
+    createProgramFileAndDirectoriesIfNotExists
     _ <- forkIO $ forever $ do
         writeBChan eventChan Tick
         threadDelay 1000000
@@ -79,15 +78,13 @@ uiMain = do
 
 createAppState :: IO AppState
 createAppState = do
-    createTasksFileIfNotExists
-    createAudioDirectoryIfNotExists
     tasks <- readTasks
     configFile <- readConfig
     setPomodoroInitialTimer <- readInitialTimer Pomodoro
     setShortBreakInitialTimer <- readInitialTimer ShortBreak
     setLongBreakInitialTimer <- readInitialTimer LongBreak
-    tasksFilePath <- readTasksFilePath
-    initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just tasksFilePath
+    tasksFilePathSetting <- readTasksFilePath
+    initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just tasksFilePathSetting
     setAudioDirectoryPath <- readAudioDirectoryPath
     initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
     setAlertSoundVolume <- readAlertSoundVolume
@@ -122,10 +119,11 @@ createAppState = do
             , _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
             , _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1
             , _initialTimerConfigDialog = initialTimerDialog (Just 0) Pomodoro
+            , _tasksFilePath = tasksFilePathSetting
             , _tasksFilePathBrowser = initialTasksFilePathBrowser
-            , _currentAlertSoundVolume = setAlertSoundVolume
-            , _alertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume") $ Just setAlertSoundVolume
-            , _currentTimerTickSoundVolume = setTimerTickSoundVolume
+            , _timerAlertSoundVolume = setAlertSoundVolume
+            , _timerAlertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume") $ Just setAlertSoundVolume
+            , _timerTickSoundVolume = setTimerTickSoundVolume
             , _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume") $ Just setTimerTickSoundVolume
             , _notificationProvider = availableNotificationProvider
             , _audioProvider = availableAudioProvider
@@ -146,7 +144,7 @@ app =
 drawUI :: AppState -> [Widget Name]
 drawUI s = do
     case BF.focusGetCurrent (s ^. focus) of
-        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader (s ^. currentAlertSoundVolume) (s ^. currentTimerTickSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
+        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader (s ^. timerAlertSoundVolume) (s ^. timerTickSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
         currentFocus@(Just (InitialTimerDialog timer)) -> do
             let currentInitialTimerValue =
@@ -179,7 +177,7 @@ drawUI s = do
                     C.center $
                         drawConfigList (s ^. configList)
                             <=> renderDialog
-                                (s ^. alertSoundVolumeConfigDialog)
+                                (s ^. timerAlertSoundVolumeConfigDialog)
                                 (drawSoundVolumeDialog "Current timer alert sound volume" currentAlertSoundVolumeConfig)
                             <=> fill ' '
                             <=> drawCommands currentFocus
@@ -201,7 +199,7 @@ drawUI s = do
                     )
                 ]
         currentFocus -> do
-            [B.border (C.center $ drawHeader (s ^. currentAlertSoundVolume) (s ^. currentTimerTickSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
+            [B.border (C.center $ drawHeader (s ^. timerAlertSoundVolume) (s ^. timerTickSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
     configListL = DV.toList $ BL.listElements (s ^. configList)
     drawCommands currentFocus =

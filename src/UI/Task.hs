@@ -2,24 +2,25 @@
 
 module UI.Task (drawTaskEditor, drawTaskList) where
 
-import Brick (Padding (Pad), Widget, emptyWidget, padLeft, padTop, str, txt, vBox, withAttr, withBorderStyle, (<=>), txtWrap)
+import Brick (Padding (Pad), Widget, emptyWidget, padLeft, padTop, str, txt, txtWrap, vBox, withAttr, withBorderStyle, (<=>))
 import qualified Brick.Focus as BF
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Edit (renderEditor)
 import qualified Brick.Widgets.List as BL
-import Control.Lens ( (^.) )
-import Types
-    ( taskEditor,
-      focus,
-      TaskAction(Edit, Insert),
-      Task,
-      AppState,
-      Name(TaskEdit) )
+import Control.Lens ((^.))
+import Data.Text (Text, unlines)
+import Types (
+    AppState,
+    Name (TaskEdit),
+    Task,
+    TaskAction (Edit, Insert),
+    focus,
+    taskEditor,
+ )
 import qualified Types as R
 import UI.Attributes (selectedTaskAttr, taskCompletedLabelAttr, taskCompletedWhiteBgLabelAttr, taskPendingLabelAttr, taskPendingWhiteBgLabelAttr)
-import Data.Text (Text, unlines)
 import Prelude hiding (unlines)
 
 drawTaskEditor :: AppState -> Widget Name

@@ -2,15 +2,15 @@
 
 module UI.Config (drawConfigList, initialTimerDialog, drawInitialTimerDialog, soundVolumeDialog, drawSoundVolumeDialog) where
 
-import Brick (Widget, hBox, padLeftRight, txt, vLimit, withAttr, vBox, padTop, Padding (..), (<=>), padBottom, str)
+import Brick (Padding (..), Widget, hBox, padBottom, padLeftRight, padTop, str, txt, vBox, vLimit, withAttr, (<=>))
+import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Core (fill)
+import Brick.Widgets.Dialog (Dialog, dialog)
 import qualified Brick.Widgets.List as BL
 import Config (configSettingsValueToString)
 import Control.Lens ((^.))
-import Types (ConfigSetting, Name, configLabel, configValue, Timer (..), InitialTimerDialogChoice (CloseInitialTimerDialog), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio))
-import UI.Attributes (selectedConfigAttr, timerAttr, blackOnWhiteAttr)
-import Brick.Widgets.Dialog (Dialog, dialog)
-import qualified Brick.Widgets.Center as C
+import Types (ConfigSetting, InitialTimerDialogChoice (CloseInitialTimerDialog), Name, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), Timer (..), configLabel, configValue)
+import UI.Attributes (blackOnWhiteAttr, selectedConfigAttr, timerAttr)
 import UI.Timer (formatTimer)
 
 drawConfigList :: BL.List Name ConfigSetting -> Widget Name
@@ -53,8 +53,8 @@ drawInitialTimerDialog currentInitialTimer =
 
 soundVolumeDialog :: Maybe String -> Maybe Int -> Dialog SoundVolumeDialogChoice
 soundVolumeDialog title _ = dialog title (Just (1, options)) 50
-    where
-      options = [("Close", CloseSoundVolumeDialog), ("Play test audio", PlayTestAudio)]
+  where
+    options = [("Close", CloseSoundVolumeDialog), ("Play test audio", PlayTestAudio)]
 
 drawSoundVolumeDialog :: String -> Int -> Widget Name
 drawSoundVolumeDialog title vol =

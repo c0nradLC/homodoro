@@ -4,29 +4,35 @@
 module UI.EventHandler (handleEvent) where
 
 import Brick (BrickEvent (AppEvent, VtyEvent), EventM, halt, zoom)
+import Brick.Focus (focusGetCurrent)
 import Brick.Widgets.Dialog (dialogSelection, handleDialogEvent)
 import Brick.Widgets.Edit (editor, getEditContents, handleEditorEvent)
-import Config (configFileSettings, readInitialTimer, updateConfig, readTimerPopupAlert, readStartStopSound, readAlertSoundVolume, findConfigSetting, maybeConfigIntValue, configFilePathValue)
+import Brick.Widgets.FileBrowser (FileInfo (fileInfoFilePath, fileInfoFileStatus), FileStatus (fileStatusFileType), FileType (Directory, RegularFile), fileBrowserCursor, fileBrowserIsSearching, getWorkingDirectory, handleFileBrowserEvent)
+import Brick.Widgets.List (
+    GenericList (listSelected),
+    List,
+    handleListEvent,
+    handleListEventVi,
+    listReplace,
+    listSelectedElement,
+ )
+import Config (configFilePathValue, configFileSettings, findConfigSetting, maybeConfigIntValue, readAlertSoundVolume, readInitialTimer, readStartStopSound, readTimerPopupAlert, updateConfig)
 import Control.Concurrent (forkIO)
-import Control.Lens ((.=), (^.), Lens')
+import Control.Lens (Lens', (.=), (^.))
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
-import Types (AppState, Audio (..), ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), configList, configValue, focus, longBreakTimer, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, timerRunning, pomodoroCounter, pomodoroCyclesCounter, tasksFilePathBrowser, initialTimerConfigDialog, Task, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), timerAlertSoundVolumeConfigDialog, timerAlertSoundVolume, timerAlertSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolume, timerTickSoundVolume, ConfigFile, NotificationProvider (NotifySend, Zenity), notificationProvider, AudioProvider (MPV, FFPlay), audioProvider, audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, timerAlertSoundVolumeSetting, timerTickSoundVolumeSetting, tasksFilePathSetting)
-import Task (mkTask, taskExists, updateTaskList, readTasks)
-import UI.Util (changeFocus)
-import Brick.Widgets.FileBrowser (handleFileBrowserEvent, fileBrowserIsSearching, fileBrowserCursor, FileInfo (fileInfoFilePath, fileInfoFileStatus), FileType (RegularFile, Directory), FileStatus (fileStatusFileType), getWorkingDirectory)
-import UI.Config ( initialTimerDialog, soundVolumeDialog )
-import Brick.Widgets.List
-    ( handleListEventVi, listReplace, listSelectedElement, GenericList (listSelected), handleListEvent, List )
-import Data.Vector (fromList)
-import Graphics.Vty (Event(EvKey), Key (..), Modifier (..))
-import Brick.Focus (focusGetCurrent)
-import Prelude hiding (null, unlines)
-import Data.Text (unlines, Text, null)
-import Data.List (find)
 import Data.Char (toLower)
-import Process (callNotificationProvider, callAudioProvider)
+import Data.List (find)
+import Data.Text (Text, null, unlines)
+import Data.Vector (fromList)
+import Graphics.Vty (Event (EvKey), Key (..), Modifier (..))
+import Process (callAudioProvider, callNotificationProvider)
 import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, (</>))
+import Task (mkTask, readTasks, taskExists, updateTaskList)
+import Types (AppState, Audio (..), AudioProvider (FFPlay, MPV), ConfigFile, ConfigFileOperation (..), ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), NotificationProvider (NotifySend, Zenity), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, audioProvider, configList, configValue, focus, initialTimerConfigDialog, longBreakTimer, notificationProvider, pomodoroCounter, pomodoroCyclesCounter, pomodoroTimer, shortBreakTimer, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerRunning, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting)
+import UI.Config (initialTimerDialog, soundVolumeDialog)
+import UI.Util (changeFocus)
+import Prelude hiding (null, unlines)
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -150,58 +156,60 @@ handleEvent ev = do
                         (KEsc, []) -> changeFocus Config s
                         _ -> zoom initialTimerConfigDialog $ handleDialogEvent vev
                 Just TasksFilePathBrowser -> do
-                    if not $ fileBrowserIsSearching (s ^. tasksFilePathBrowser) then do
-                        case (k, ms) of
-                            (KEsc, []) -> changeFocus Config s
-                            (KChar 'q', []) -> changeFocus Config s
-                            (KEnter, []) -> do
-                                case fileBrowserCursor (s ^. tasksFilePathBrowser) of
-                                    Just fileInfo -> do
-                                        if fileType fileInfo == Just RegularFile then do
-                                            handleConfigUpdate (SetFilePathSetting tasksFilePathSetting (ConfigTasksFilePath $ fileInfoFilePath fileInfo))  s configList
-                                                $ \_ -> do
-                                                changeFocus Config s
-                                                newTaskFile <- liftIO readTasks
-                                                taskList .= listReplace (fromList newTaskFile) (listSelected $ s ^. taskList) (s ^. taskList)
-                                        else
-                                            zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
-                                    Nothing -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
-                                return ()
-                            _ -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
-                    else zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
+                    if not $ fileBrowserIsSearching (s ^. tasksFilePathBrowser)
+                        then do
+                            case (k, ms) of
+                                (KEsc, []) -> changeFocus Config s
+                                (KChar 'q', []) -> changeFocus Config s
+                                (KEnter, []) -> do
+                                    case fileBrowserCursor (s ^. tasksFilePathBrowser) of
+                                        Just fileInfo -> do
+                                            if fileType fileInfo == Just RegularFile
+                                                then do
+                                                    handleConfigUpdate (SetFilePathSetting tasksFilePathSetting (ConfigTasksFilePath $ fileInfoFilePath fileInfo)) s configList $
+                                                        \_ -> do
+                                                            changeFocus Config s
+                                                            newTaskFile <- liftIO readTasks
+                                                            taskList .= listReplace (fromList newTaskFile) (listSelected $ s ^. taskList) (s ^. taskList)
+                                                else zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
+                                        Nothing -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
+                                    return ()
+                                _ -> zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
+                        else zoom tasksFilePathBrowser $ handleFileBrowserEvent vev
                 Just AudioDirectoryPathBrowser -> do
-                    if not $ fileBrowserIsSearching (s ^. audioDirectoryPathBrowser) then do
-                        case (k, ms) of
-                            (KEsc, []) -> changeFocus Config s
-                            (KChar 'q', []) -> changeFocus Config s
-                            (KChar 'C', []) -> do
-                                handleConfigUpdate (SetFilePathSetting audioDirectoryPathSetting (ConfigAudioDirectoryPath $ getWorkingDirectory (s ^. audioDirectoryPathBrowser))) s configList
-                                    $ \updatedConfigFile -> do
-                                    changeFocus Config s
-                                    audioDirectoryPath .= configFilePathValue (updatedConfigFile ^. audioDirectoryPathSetting)
-                            (KChar 'c', []) -> do
-                                case fileBrowserCursor (s ^. audioDirectoryPathBrowser) of
-                                    Just fileInfo -> do
-                                        if fileType fileInfo == Just Directory then do
-                                            handleConfigUpdate (SetFilePathSetting audioDirectoryPathSetting (ConfigAudioDirectoryPath $ fileInfoFilePath fileInfo)) s configList
-                                                $ \updatedConfigFile -> do
-                                                changeFocus Config s
-                                                audioDirectoryPath .= configFilePathValue (updatedConfigFile ^. audioDirectoryPathSetting)
-                                        else
-                                            zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
-                                    Nothing -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
-                                return ()
-                            _ -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
-                    else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                    if not $ fileBrowserIsSearching (s ^. audioDirectoryPathBrowser)
+                        then do
+                            case (k, ms) of
+                                (KEsc, []) -> changeFocus Config s
+                                (KChar 'q', []) -> changeFocus Config s
+                                (KChar 'C', []) -> do
+                                    handleConfigUpdate (SetFilePathSetting audioDirectoryPathSetting (ConfigAudioDirectoryPath $ getWorkingDirectory (s ^. audioDirectoryPathBrowser))) s configList $
+                                        \updatedConfigFile -> do
+                                            changeFocus Config s
+                                            audioDirectoryPath .= configFilePathValue (updatedConfigFile ^. audioDirectoryPathSetting)
+                                (KChar 'c', []) -> do
+                                    case fileBrowserCursor (s ^. audioDirectoryPathBrowser) of
+                                        Just fileInfo -> do
+                                            if fileType fileInfo == Just Directory
+                                                then do
+                                                    handleConfigUpdate (SetFilePathSetting audioDirectoryPathSetting (ConfigAudioDirectoryPath $ fileInfoFilePath fileInfo)) s configList $
+                                                        \updatedConfigFile -> do
+                                                            changeFocus Config s
+                                                            audioDirectoryPath .= configFilePathValue (updatedConfigFile ^. audioDirectoryPathSetting)
+                                                else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                                        Nothing -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                                    return ()
+                                _ -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
+                        else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
                 Just TimerAlertSoundVolumeDialog -> do
                     case (k, ms) of
                         (KUp, []) -> do
-                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolumeSetting 5)  s configList
-                                $ \updatedConfigSettings -> do
+                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolumeSetting 5) s configList $
+                                \updatedConfigSettings -> do
                                     timerAlertSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerAlertSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KDown, []) -> do
-                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolumeSetting $ -5) s configList
-                                $ \updatedConfigSettings -> do
+                            handleConfigUpdate (AddSoundVolume timerAlertSoundVolumeSetting $ -5) s configList $
+                                \updatedConfigSettings -> do
                                     timerAlertSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerAlertSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KEnter, []) -> case dialogSelection (s ^. timerAlertSoundVolumeConfigDialog) of
                             Just PlayTestAudio -> do
@@ -215,16 +223,16 @@ handleEvent ev = do
                 Just TimerTickSoundVolumeDialog -> do
                     case (k, ms) of
                         (KUp, []) ->
-                            handleConfigUpdate (AddSoundVolume timerTickSoundVolumeSetting 5) s configList
-                                $ \updatedConfigSettings -> do
+                            handleConfigUpdate (AddSoundVolume timerTickSoundVolumeSetting 5) s configList $
+                                \updatedConfigSettings -> do
                                     timerTickSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerAlertSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KDown, []) -> do
-                            handleConfigUpdate (AddSoundVolume timerTickSoundVolumeSetting $ -5) s configList
-                                $ \updatedConfigSettings -> do
+                            handleConfigUpdate (AddSoundVolume timerTickSoundVolumeSetting $ -5) s configList $
+                                \updatedConfigSettings -> do
                                     timerTickSoundVolume .= maybeConfigIntValue (findConfigSetting (ConfigTimerTickSoundVolume 0) (configFileSettings updatedConfigSettings))
                         (KEnter, []) -> case dialogSelection (s ^. timerTickSoundVolumeConfigDialog) of
                             Just PlayTestAudio -> do
-                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath)  TimerTick (s ^. timerTickSoundVolume)
+                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerTick (s ^. timerTickSoundVolume)
                                 return ()
                             Just CloseSoundVolumeDialog -> changeFocus Config s
                             _ -> return ()
@@ -235,13 +243,13 @@ handleEvent ev = do
         _ -> return ()
 
 handleTimerTick ::
-    AppState
-    -> Lens' AppState Int
-    -> String
-    -> Timer
-    -> Name
-    -> EventM Name AppState ()
-    -> EventM Name AppState ()
+    AppState ->
+    Lens' AppState Int ->
+    String ->
+    Timer ->
+    Name ->
+    EventM Name AppState () ->
+    EventM Name AppState ()
 handleTimerTick s timerL popupText timer nextFocus afterTickF = do
     when (s ^. timerRunning) $ do
         tickTimer (s ^. audioProvider) (s ^. audioDirectoryPath) timerL (s ^. timerL) (s ^. timerTickSoundVolume)
@@ -256,23 +264,27 @@ handleTimerTick s timerL popupText timer nextFocus afterTickF = do
             resetTimer timerL timer
             afterTickF
             changeFocus nextFocus s
-    where alertRoundEnded sNotificationProvider alertMsg timerEndedNotificationIsActive
-            | timerEndedNotificationIsActive = do
-            liftIO $ maybe (return ())
-                (\jnftp -> do
-                    let args = case jnftp of
-                            NotifySend -> "-a homodoro \"" <> alertMsg <> "\""
-                            Zenity -> "--title=homodoro --text=" <> alertMsg
-                    callNotificationProvider jnftp args)
-                sNotificationProvider 
-            | otherwise = return ()
+  where
+    alertRoundEnded sNotificationProvider alertMsg timerEndedNotificationIsActive
+        | timerEndedNotificationIsActive = do
+            liftIO $
+                maybe
+                    (return ())
+                    ( \jnftp -> do
+                        let args = case jnftp of
+                                NotifySend -> "-a homodoro \"" <> alertMsg <> "\""
+                                Zenity -> "--title=homodoro --text=" <> alertMsg
+                        callNotificationProvider jnftp args
+                    )
+                    sNotificationProvider
+        | otherwise = return ()
 
 handleConfigUpdate ::
-    ConfigFileOperation
-    -> AppState
-    -> Lens' AppState (List Name ConfigSetting)
-    -> (ConfigFile -> EventM Name AppState ())
-    -> EventM Name AppState ()
+    ConfigFileOperation ->
+    AppState ->
+    Lens' AppState (List Name ConfigSetting) ->
+    (ConfigFile -> EventM Name AppState ()) ->
+    EventM Name AppState ()
 handleConfigUpdate cfgOp s configListL afterF = do
     updatedConfigSettings <- liftIO $ updateConfig cfgOp
     configListL .= listReplace (fromList $ configFileSettings updatedConfigSettings) (listSelected $ s ^. configList) (s ^. configList)
@@ -286,8 +298,8 @@ fileType fileInfo = case fileInfoFileStatus fileInfo of
 tickTimer :: Maybe AudioProvider -> FilePath -> Lens' AppState Int -> Int -> Int -> EventM Name AppState ()
 tickTimer sAudioProvider sAudioDirectoryPath timerL timerValue tickVolume = do
     when (tickVolume > 0 && timerValue > 0) $ do
-       _ <- liftIO $ forkIO $ playAudio sAudioProvider sAudioDirectoryPath  TimerTick tickVolume
-       return ()
+        _ <- liftIO $ forkIO $ playAudio sAudioProvider sAudioDirectoryPath TimerTick tickVolume
+        return ()
     timerL .= max (timerValue - 1) 0
 
 stopTimer :: EventM Name AppState ()
@@ -322,11 +334,13 @@ playAudio ap currentAudioDirectoryPath audio vol = do
     filesInDir <- listDirectory currentAudioDirectoryPath
     case find (\file -> map toLower (takeBaseName file) == map toLower (show audio)) filesInDir of
         Just audioFileName ->
-            maybe (return ())
-            (\jap -> do
-                let args = case jap of
-                        MPV -> currentAudioDirectoryPath </> audioFileName <> " --volume=" <> show vol
-                        FFPlay -> ""
-                callAudioProvider jap args)
-            ap
+            maybe
+                (return ())
+                ( \jap -> do
+                    let args = case jap of
+                            MPV -> currentAudioDirectoryPath </> audioFileName <> " --volume=" <> show vol
+                            FFPlay -> ""
+                    callAudioProvider jap args
+                )
+                ap
         Nothing -> return ()

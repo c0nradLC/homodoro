@@ -9,16 +9,16 @@ module UI.Attributes (
     taskPendingLabelAttr,
     taskPendingWhiteBgLabelAttr,
     selectedConfigAttr,
-    blackOnWhiteAttr
+    blackOnWhiteAttr,
 )
 where
 
 import Brick (AttrMap, AttrName, attrMap, attrName, on)
 import Brick.Widgets.Dialog (buttonAttr, buttonSelectedAttr)
-import Brick.Widgets.FileBrowser (fileBrowserCurrentDirectoryAttr, fileBrowserSelectionInfoAttr, fileBrowserRegularFileAttr)
+import Brick.Widgets.FileBrowser (fileBrowserCurrentDirectoryAttr, fileBrowserRegularFileAttr, fileBrowserSelectionInfoAttr)
+import Brick.Widgets.List (listSelectedAttr)
 import Graphics.Vty (withForeColor)
 import qualified Graphics.Vty as V
-import Brick.Widgets.List (listSelectedAttr)
 
 attributes :: AttrMap
 attributes =

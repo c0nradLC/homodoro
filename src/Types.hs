@@ -5,8 +5,8 @@
 module Types (
     Name (..),
     Timer (..),
-    Timers(..),
-    TimerState(..),
+    Timers (..),
+    TimerState (..),
     TaskAction (..),
     AppState (..),
     Tick (..),
@@ -87,10 +87,10 @@ data TimerState = TimerState
 makeLenses ''TimerState
 
 data Timers = Timers
-  { _pomodoroState :: TimerState
-  , _shortBreakState :: TimerState
-  , _longBreakState :: TimerState
-  }
+    { _pomodoroState :: TimerState
+    , _shortBreakState :: TimerState
+    , _longBreakState :: TimerState
+    }
 makeLenses ''Timers
 
 data InitialTimerDialogChoice

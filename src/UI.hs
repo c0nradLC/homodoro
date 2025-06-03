@@ -45,27 +45,34 @@ import Types (
     TaskAction (Edit, Insert),
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
+    TimerState (TimerState, _timerCurrentValue, _timerInitialValue),
+    Timers (Timers, _longBreakState, _pomodoroState, _shortBreakState),
     audioDirectoryPathBrowser,
     audioDirectoryPathSetting,
     configList,
     focus,
     initialTimerConfigDialog,
     longBreakInitialTimerSetting,
+    longBreakState,
     pomodoroInitialTimerSetting,
+    pomodoroState,
     shortBreakInitialTimerSetting,
+    shortBreakState,
     taskList,
     tasksFilePathBrowser,
     tasksFilePathSetting,
     timerAlertSoundVolume,
     timerAlertSoundVolumeConfigDialog,
     timerAlertSoundVolumeSetting,
+    timerInitialValue,
     timerPopupAlertSetting,
     timerStartStopSoundVolume,
     timerStartStopSoundVolumeConfigDialog,
     timerStartStopSoundVolumeSetting,
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
-    timerTickSoundVolumeSetting, Timers (Timers, _pomodoroState, _shortBreakState, _longBreakState), TimerState (_timerCurrentValue, TimerState, _timerInitialValue), timerInitialValue, pomodoroState, timers, shortBreakState, longBreakState,
+    timerTickSoundVolumeSetting,
+    timers,
  )
 import UI.Attributes (
     attributes,
@@ -100,12 +107,12 @@ createAppState = do
         setAlertSoundVolume = configIntValue $ configFile ^. timerAlertSoundVolumeSetting
         setTimerTickSoundVolume = configIntValue $ configFile ^. timerTickSoundVolumeSetting
         setTimerPopupAlert = configBoolValue $ configFile ^. timerPopupAlertSetting
-        setTimerValues = Timers
-            {
-              _pomodoroState = TimerState{_timerCurrentValue = setPomodoroInitialTimer, _timerInitialValue = setPomodoroInitialTimer}
-            , _shortBreakState = TimerState{_timerCurrentValue = setShortBreakInitialTimer, _timerInitialValue = setShortBreakInitialTimer}
-            , _longBreakState = TimerState{_timerCurrentValue = setLongBreakInitialTimer, _timerInitialValue = setLongBreakInitialTimer}
-            }
+        setTimerValues =
+            Timers
+                { _pomodoroState = TimerState{_timerCurrentValue = setPomodoroInitialTimer, _timerInitialValue = setPomodoroInitialTimer}
+                , _shortBreakState = TimerState{_timerCurrentValue = setShortBreakInitialTimer, _timerInitialValue = setShortBreakInitialTimer}
+                , _longBreakState = TimerState{_timerCurrentValue = setLongBreakInitialTimer, _timerInitialValue = setLongBreakInitialTimer}
+                }
      in do
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
             initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath

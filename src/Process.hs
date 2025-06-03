@@ -24,7 +24,7 @@ getNotificationProvider = do
 getAudioProvider :: IO (Maybe AudioProvider)
 getAudioProvider = do
     ffplayProbe <- try (callCommand "ffplay -v") :: IO (Either SomeException ())
-    case ffplayProbe  of
+    case ffplayProbe of
         Right _ -> return $ Just FFPlay
         Left _ -> do
             mpvProbe <- try (callCommand "mpv -v") :: IO (Either SomeException ())

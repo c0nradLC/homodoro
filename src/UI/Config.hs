@@ -9,7 +9,7 @@ import Brick.Widgets.Dialog (Dialog, dialog)
 import qualified Brick.Widgets.List as BL
 import Config (configSettingsValueToString)
 import Control.Lens ((^.))
-import Types (ConfigSetting, InitialTimerDialogChoice (CloseInitialTimerDialog), Name, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), Timer (..), configLabel, configValue)
+import Types (ConfigSetting, InitialTimerDialogChoice (CloseInitialTimerDialog, Save), Name, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), Timer (..), configLabel, configValue)
 import UI.Attributes (blackOnWhiteAttr, selectedConfigAttr, timerAttr)
 import UI.Timer (formatTimer)
 
@@ -33,9 +33,9 @@ drawConfig selected cfg = do
                     ]
 
 initialTimerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice
-initialTimerDialog _ timer = dialog title (Just (0, options)) 50
+initialTimerDialog _ timer = dialog title (Just (1, options)) 50
   where
-    options = [("Close", CloseInitialTimerDialog)]
+    options = [("Close", CloseInitialTimerDialog), ("Save", Save)]
     title = case timer of
         Pomodoro -> Just "Set pomodoro initial timer"
         ShortBreak -> Just "Set short break initial timer"

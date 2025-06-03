@@ -5,13 +5,14 @@
 module Types (
     Name (..),
     Timer (..),
+    Timers(..),
+    TimerState(..),
     TaskAction (..),
     AppState (..),
     Tick (..),
     ConfigFile (..),
     ConfigSetting (..),
     ConfigSettingValue (..),
-    ConfigFileOperation (..),
     Task (..),
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
@@ -22,9 +23,6 @@ module Types (
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
-    pomodoroTimer,
-    shortBreakTimer,
-    longBreakTimer,
     taskEditor,
     taskList,
     configList,
@@ -38,7 +36,7 @@ module Types (
     longBreakInitialTimerSetting,
     tasksFilePath,
     tasksFilePathSetting,
-    startStopSoundSetting,
+    timerStartStopSoundVolumeSetting,
     timerPopupAlertSetting,
     initialTimerConfigDialog,
     tasksFilePathBrowser,
@@ -53,6 +51,16 @@ module Types (
     audioDirectoryPath,
     audioDirectoryPathSetting,
     audioDirectoryPathBrowser,
+    configFile,
+    timerPopupAlert,
+    timerStartStopSoundVolume,
+    timerStartStopSoundVolumeConfigDialog,
+    timers,
+    pomodoroState,
+    shortBreakState,
+    longBreakState,
+    timerCurrentValue,
+    timerInitialValue,
 )
 where
 
@@ -61,7 +69,7 @@ import Brick.Widgets.Dialog (Dialog)
 import Brick.Widgets.Edit (Editor)
 import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
-import Control.Lens (Lens', makeLenses)
+import Control.Lens (makeLenses)
 import Data.Aeson.TH (defaultOptions, deriveJSON)
 import Data.Text (Text)
 
@@ -72,8 +80,22 @@ data Timer
     deriving (Show, Eq, Ord)
 deriveJSON defaultOptions ''Timer
 
+data TimerState = TimerState
+    { _timerCurrentValue :: Int
+    , _timerInitialValue :: Int
+    }
+makeLenses ''TimerState
+
+data Timers = Timers
+  { _pomodoroState :: TimerState
+  , _shortBreakState :: TimerState
+  , _longBreakState :: TimerState
+  }
+makeLenses ''Timers
+
 data InitialTimerDialogChoice
-    = CloseInitialTimerDialog
+    = Save
+    | CloseInitialTimerDialog
 
 data SoundVolumeDialogChoice
     = PlayTestAudio
@@ -92,6 +114,7 @@ data Name
     | TasksFilePathBrowser
     | TimerAlertSoundVolumeDialog
     | TimerTickSoundVolumeDialog
+    | TimerStartStopSoundVolumeDialog
     | AudioDirectoryPathBrowser
     deriving (Show, Eq, Ord)
 
@@ -100,8 +123,7 @@ data Tick = Tick
 data Audio
     = TimerEnded
     | TimerTick
-    | TimerStart
-    | TimerStop
+    | TimerStartStop
     deriving (Show, Eq)
 
 data AudioProvider
@@ -140,9 +162,9 @@ data TaskListOperation
 
 data ConfigSettingValue
     = ConfigInitialTimer Timer Int
-    | ConfigTimerStartStopSound Bool
     | ConfigTasksFilePath FilePath
     | ConfigTimerPopupAlert Bool
+    | ConfigTimerStartStopSoundVolume Int
     | ConfigTimerAlertSoundVolume Int
     | ConfigTimerTickSoundVolume Int
     | ConfigAudioDirectoryPath FilePath
@@ -164,7 +186,7 @@ data ConfigFile = ConfigFile
     { _pomodoroInitialTimerSetting :: ConfigSetting
     , _shortBreakInitialTimerSetting :: ConfigSetting
     , _longBreakInitialTimerSetting :: ConfigSetting
-    , _startStopSoundSetting :: ConfigSetting
+    , _timerStartStopSoundVolumeSetting :: ConfigSetting
     , _tasksFilePathSetting :: ConfigSetting
     , _timerPopupAlertSetting :: ConfigSetting
     , _timerAlertSoundVolumeSetting :: ConfigSetting
@@ -175,29 +197,22 @@ data ConfigFile = ConfigFile
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
 
-data ConfigFileOperation
-    = AddInitialTimer Timer Int
-    | ToggleStartStopSound
-    | ToggleTimerPopupAlert
-    | AddSoundVolume (Lens' ConfigFile ConfigSetting) Int
-    | SetFilePathSetting (Lens' ConfigFile ConfigSetting) ConfigSettingValue
-
-deriveJSON defaultOptions ''Audio
-
 data AppState = AppState
     { _timerRunning :: Bool
+    , _timers :: Timers
     , _pomodoroCounter :: Int
     , _pomodoroCyclesCounter :: Int
-    , _pomodoroTimer :: Int
-    , _shortBreakTimer :: Int
-    , _longBreakTimer :: Int
     , _taskEditor :: Editor Text Name
     , _taskList :: BL.List Name Task
     , _focus :: BF.FocusRing Name
     , _configList :: BL.List Name ConfigSetting
+    , _configFile :: ConfigFile
     , _initialTimerConfigDialog :: Dialog InitialTimerDialogChoice
     , _tasksFilePath :: FilePath
     , _tasksFilePathBrowser :: FileBrowser Name
+    , _timerPopupAlert :: Bool
+    , _timerStartStopSoundVolume :: Int
+    , _timerStartStopSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     , _timerAlertSoundVolume :: Int
     , _timerAlertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     , _timerTickSoundVolume :: Int

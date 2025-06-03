@@ -23,13 +23,13 @@ getNotificationProvider = do
 
 getAudioProvider :: IO (Maybe AudioProvider)
 getAudioProvider = do
-    mpvProbe <- try (callCommand "mpv -v") :: IO (Either SomeException ())
-    case mpvProbe of
-        Right _ -> return $ Just MPV
+    ffplayProbe <- try (callCommand "ffplay -v") :: IO (Either SomeException ())
+    case ffplayProbe  of
+        Right _ -> return $ Just FFPlay
         Left _ -> do
-            zenity <- try (callCommand "ffplay -v") :: IO (Either SomeException ())
-            case zenity of
-                Right _ -> return $ Just FFPlay
+            mpvProbe <- try (callCommand "mpv -v") :: IO (Either SomeException ())
+            case mpvProbe of
+                Right _ -> return $ Just MPV
                 Left _ -> return Nothing
 
 callNotificationProvider :: NotificationProvider -> String -> IO ()
@@ -41,4 +41,4 @@ callAudioProvider audioProvider args =
     callCommand $ show audioProvider <> " " <> args
 
 callCommand :: String -> IO ()
-callCommand str = System.Process.callCommand $ str <> " > /dev/null"
+callCommand str = System.Process.callCommand $ str <> " > /dev/null 2>&1"

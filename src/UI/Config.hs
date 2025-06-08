@@ -9,7 +9,7 @@ import Brick.Widgets.Dialog (Dialog, dialog)
 import qualified Brick.Widgets.List as BL
 import Config (configSettingsValueToString)
 import Control.Lens ((^.))
-import Types (ConfigSetting, InitialTimerDialogChoice (CloseInitialTimerDialog, Save), Name, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio), Timer (..), configLabel, configValue)
+import Types (ConfigSetting, InitialTimerDialogChoice (CloseInitialTimerDialog, SaveInitialTimer), Name, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Timer (..), configLabel, configValue)
 import UI.Attributes (blackOnWhiteAttr, selectedConfigAttr, timerAttr)
 import UI.Timer (formatTimer)
 
@@ -35,7 +35,7 @@ drawConfig selected cfg = do
 initialTimerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice
 initialTimerDialog _ timer = dialog title (Just (1, options)) 50
   where
-    options = [("Close", CloseInitialTimerDialog), ("Save", Save)]
+    options = [("Close", CloseInitialTimerDialog), ("SaveInitialTimer", SaveInitialTimer)]
     title = case timer of
         Pomodoro -> Just "Set pomodoro initial timer"
         ShortBreak -> Just "Set short break initial timer"
@@ -54,7 +54,7 @@ drawInitialTimerDialog currentInitialTimer =
 soundVolumeDialog :: Maybe String -> Maybe Int -> Dialog SoundVolumeDialogChoice
 soundVolumeDialog title _ = dialog title (Just (1, options)) 50
   where
-    options = [("Close", CloseSoundVolumeDialog), ("Play test audio", PlayTestAudio)]
+    options = [("Close", CloseSoundVolumeDialog), ("Play test audio", PlayTestAudio), ("Save", SaveSoundVolume)]
 
 drawSoundVolumeDialog :: String -> Int -> Widget Name
 drawSoundVolumeDialog title vol =

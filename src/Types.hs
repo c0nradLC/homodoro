@@ -94,12 +94,13 @@ data Timers = Timers
 makeLenses ''Timers
 
 data InitialTimerDialogChoice
-    = Save
+    = SaveInitialTimer
     | CloseInitialTimerDialog
 
 data SoundVolumeDialogChoice
     = PlayTestAudio
     | CloseSoundVolumeDialog
+    | SaveSoundVolume
 
 data TaskAction
     = Edit

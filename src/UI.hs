@@ -27,7 +27,7 @@ import Brick.Widgets.FileBrowser (
     selectNonDirectories,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, findConfigSetting, maybeConfigBoolValue, maybeConfigIntValue, readConfig, showBool, showPercentage)
+import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, findConfigSetting, maybeConfigBoolValue, readConfig, showBool, showPercentage)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
@@ -191,36 +191,30 @@ drawUI s = do
                             <=> drawCommands currentFocus
                 ]
         Just TimerTickSoundVolumeDialog -> do
-            let currentTimerTickSoundVolumeConfig =
-                    maybeConfigIntValue $ findConfigSetting (ConfigTimerTickSoundVolume 0) configListL
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
                             <=> renderDialog
                                 (s ^. timerTickSoundVolumeConfigDialog)
-                                (drawSoundVolumeDialog "Current timer tick sound volume" currentTimerTickSoundVolumeConfig)
+                                (drawSoundVolumeDialog "Current timer tick sound volume" (s ^. timerTickSoundVolume))
                             <=> fill ' '
                 ]
         Just TimerAlertSoundVolumeDialog -> do
-            let currentAlertSoundVolumeConfig =
-                    maybeConfigIntValue $ findConfigSetting (ConfigTimerAlertSoundVolume 0) configListL
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
                             <=> renderDialog
                                 (s ^. timerAlertSoundVolumeConfigDialog)
-                                (drawSoundVolumeDialog "Current timer alert sound volume" currentAlertSoundVolumeConfig)
+                                (drawSoundVolumeDialog "Current timer alert sound volume" (s ^. timerAlertSoundVolume))
                             <=> fill ' '
                 ]
         Just TimerStartStopSoundVolumeDialog -> do
-            let currentTimerStartStopSoundVolume =
-                    maybeConfigIntValue $ findConfigSetting (ConfigTimerStartStopSoundVolume 0) configListL
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
                             <=> renderDialog
                                 (s ^. timerStartStopSoundVolumeConfigDialog)
-                                (drawSoundVolumeDialog "Current timer start/stop sound volume" currentTimerStartStopSoundVolume)
+                                (drawSoundVolumeDialog "Current timer start/stop sound volume" (s ^. timerStartStopSoundVolume))
                             <=> fill ' '
                 ]
         currentFocus@(Just TasksFilePathBrowser) -> do

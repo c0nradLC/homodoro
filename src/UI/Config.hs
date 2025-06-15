@@ -35,7 +35,7 @@ drawConfig selected cfg = do
 initialTimerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice
 initialTimerDialog _ timer = dialog title (Just (1, options)) 50
   where
-    options = [("Close", CloseInitialTimerDialog), ("SaveInitialTimer", SaveInitialTimer)]
+    options = [("Close", CloseInitialTimerDialog), ("Save", SaveInitialTimer)]
     title = case timer of
         Pomodoro -> Just "Set pomodoro initial timer"
         ShortBreak -> Just "Set short break initial timer"

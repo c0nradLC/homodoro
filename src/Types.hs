@@ -122,7 +122,7 @@ data Name
 data Tick = Tick
 
 data Audio
-    = TimerEnded
+    = TimerAlert
     | TimerTick
     | TimerStartStop
     deriving (Show, Eq)

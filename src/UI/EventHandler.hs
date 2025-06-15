@@ -18,21 +18,21 @@ import Brick.Widgets.List (
  )
 import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, initialTimerSettingL, updateConfig)
 import Control.Concurrent (forkIO)
-import Control.Lens (Lens', (.=), (^.))
+import Control.Lens (Lens', (.=), (^.), use)
 import Control.Monad.State (MonadIO (liftIO), MonadState (..), when)
-import Data.Char (toLower)
-import Data.List (find)
 import Data.Text (Text, null, unlines)
 import Data.Vector (fromList, toList)
 import Graphics.Vty (Event (EvKey), Key (..), Modifier (..))
 import Process (callAudioProvider, callNotificationProvider)
-import System.Directory (listDirectory)
-import System.FilePath (takeBaseName, (</>))
+import System.FilePath ((</>), takeBaseName)
 import Task (mkTask, readTasks, taskExists, updateTaskList, writeTasks)
 import Types (AppState (), Audio (..), AudioProvider (FFPlay, MPV), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), NotificationProvider (NotifySend, Zenity), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, audioProvider, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, notificationProvider, pomodoroCounter, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timers)
 import UI.Config (initialTimerDialog, soundVolumeDialog)
 import UI.Util (changeFocus)
 import Prelude hiding (null, unlines)
+import System.Directory (listDirectory)
+import Data.Char (toLower)
+import Data.List (find)
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
 handleEvent ev = do
@@ -119,6 +119,9 @@ handleEvent ev = do
                             case selectedConfigSetting ^. configValue of
                                 ConfigTimerPopupAlert _ -> do
                                     handleConfigUpdate s timerPopupAlertSetting (ConfigTimerPopupAlert $ not (s ^. timerPopupAlert)) configList configFile
+                                    updatedConfigFile <- use configFile
+                                    let updatedTimerPopupAlertSetting = configBoolValue $  updatedConfigFile ^. timerPopupAlertSetting
+                                    timerPopupAlert .= updatedTimerPopupAlertSetting 
                                 ConfigInitialTimer timer _ -> do
                                     initialTimerConfigDialog .= initialTimerDialog (Just 0) timer
                                     changeFocus (InitialTimerDialog timer) s
@@ -128,7 +131,7 @@ handleEvent ev = do
                                     timerAlertSoundVolumeConfigDialog .= soundVolumeDialog (Just "Timer alert sound volume") (Just (s ^. timerAlertSoundVolume))
                                     changeFocus TimerAlertSoundVolumeDialog s
                                 ConfigTimerTickSoundVolume _ -> do
-                                    timerAlertSoundVolumeConfigDialog .= soundVolumeDialog (Just "Timer tick sound volume") (Just (s ^. timerTickSoundVolume))
+                                    timerTickSoundVolumeConfigDialog .= soundVolumeDialog (Just "Timer tick sound volume") (Just (s ^. timerTickSoundVolume))
                                     changeFocus TimerTickSoundVolumeDialog s
                                 ConfigTimerStartStopSoundVolume _ -> do
                                     timerStartStopSoundVolumeConfigDialog .= soundVolumeDialog (Just "Timer start/stop sound volume") (Just (s ^. timerStartStopSoundVolume))
@@ -213,7 +216,7 @@ handleEvent ev = do
                             Just SaveSoundVolume -> do
                                 handleConfigUpdate s timerAlertSoundVolumeSetting (ConfigTimerAlertSoundVolume (s ^. timerAlertSoundVolume)) configList configFile
                             Just PlayTestAudio -> do
-                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerEnded (s ^. timerAlertSoundVolume)
+                                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerAlert (s ^. timerAlertSoundVolume)
                                 return ()
                             Just CloseSoundVolumeDialog -> do
                                 timerAlertSoundVolume .= configIntValue (s ^. configFile . timerAlertSoundVolumeSetting)
@@ -299,7 +302,7 @@ handleTimerTick s timerL popupText timer nextFocus f = do
         when (s ^. timerL == 0) $ do
             stopTimer
             when (currentAlertSoundVolume > 0) $ do
-                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerEnded currentAlertSoundVolume
+                _ <- liftIO $ forkIO $ playAudio (s ^. audioProvider) (s ^. audioDirectoryPath) TimerAlert currentAlertSoundVolume
                 return ()
             alertRoundEnded (s ^. notificationProvider) popupText $ configBoolValue $ s ^. (configFile . timerPopupAlertSetting)
             resetTimer s timer

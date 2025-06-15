@@ -16,7 +16,7 @@ module Config (
     configFilePathValue,
     initialTimerSettingL,
     configIntValue,
-    showPercentage,
+    showPercentage
 )
 where
 
@@ -101,10 +101,10 @@ configFileSettings :: ConfigFile -> [ConfigSetting]
 configFileSettings configFile =
     [ configFile ^. timerAlertSoundVolumeSetting
     , configFile ^. timerTickSoundVolumeSetting
+    , configFile ^. timerStartStopSoundVolumeSetting
     , configFile ^. pomodoroInitialTimerSetting
     , configFile ^. shortBreakInitialTimerSetting
     , configFile ^. longBreakInitialTimerSetting
-    , configFile ^. timerStartStopSoundVolumeSetting
     , configFile ^. timerPopupAlertSetting
     , configFile ^. tasksFilePathSetting
     , configFile ^. audioDirectoryPathSetting

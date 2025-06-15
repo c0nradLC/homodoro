@@ -174,7 +174,7 @@ app =
 drawUI :: AppState -> [Widget Name]
 drawUI s = do
     case BF.focusGetCurrent (s ^. focus) of
-        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader (s ^. timerAlertSoundVolume) (s ^. timerTickSoundVolume) (s ^. timerStartStopSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
+        currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
         currentFocus@(Just (InitialTimerDialog timer)) -> do
             let currentInitialTimerValue = case timer of
@@ -234,7 +234,7 @@ drawUI s = do
                     )
                 ]
         currentFocus -> do
-            [B.border (C.center $ drawHeader (s ^. timerAlertSoundVolume) (s ^. timerTickSoundVolume) (s ^. timerStartStopSoundVolume) <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
+            [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
     configListL = DV.toList $ BL.listElements (s ^. configList)
     drawCommands currentFocus =
@@ -254,9 +254,9 @@ drawUI s = do
                 strWrap
                     "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
             _ -> emptyWidget
-    drawHeader timerAlertVolume timerTickVolume timerStartStopVolume = do
-        let popupEnabled = maybeConfigBoolValue $ findConfigSetting (ConfigTimerPopupAlert False) configListL
+    drawHeader state = do
+        let popupEnabled          = maybeConfigBoolValue $ findConfigSetting (ConfigTimerPopupAlert False) configListL
          in str ("Timer popup: " ++ showBool popupEnabled)
-                <=> str ("Timer tick volume: " ++ showPercentage timerTickVolume)
-                <=> str ("Timer alert volume: " ++ showPercentage timerAlertVolume)
-                <=> str ("Timer start/stop volume: " ++ showPercentage timerStartStopVolume)
+                <=> str ("Timer tick volume: " ++ showPercentage (state ^. timerTickSoundVolume))
+                <=> str ("Timer alert volume: " ++ showPercentage (state ^. timerAlertSoundVolume))
+                <=> str ("Timer start/stop volume: " ++ showPercentage (state ^. timerStartStopSoundVolume))

@@ -13,13 +13,16 @@ import Control.Lens (filtered, over, traversed, view, (%~), (.~), (^.))
 import Data.Aeson (decodeStrict)
 import Data.Aeson.Text (encodeToLazyText)
 import Data.Maybe (fromMaybe)
-import Data.Text (Text, drop, dropWhile, dropWhileEnd, isPrefixOf, lines, unlines)
+import Data.Text (Text, drop, dropWhile, dropWhileEnd, isPrefixOf, lines, unlines, isInfixOf, pack)
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
 import qualified Data.Text.Lazy as TL (toStrict)
 import System.FilePath (takeExtension)
 import Types (Task (..), TaskListOperation (..), taskCompleted, taskContent)
 import Prelude hiding (drop, dropWhile, lines, take, takeWhile, unlines)
+import Control.Exception (try, SomeException (..))
+import System.Exit ( exitFailure )
+import Control.Monad (when)
 
 mkTask :: Text -> Maybe Bool -> Task
 mkTask txt completed = Task{_taskContent = txt, _taskCompleted = fromMaybe False completed}
@@ -46,16 +49,31 @@ writeTasks fp tasks = do
 
 readTasks :: FilePath -> IO [Task]
 readTasks fp = do
+    taskFileContent <- readTaskFile fp
     case takeExtension fp of
         ".json" -> do
-            tasksFromFile <- TIO.readFile fp
-            case decodeStrict $ encodeUtf8 tasksFromFile of
+            case decodeStrict $ encodeUtf8 taskFileContent  of
                 Just tasks -> return tasks
                 Nothing -> return []
         ".md" -> do
-            tasksFromFile <- TIO.readFile fp
-            return $ decodeMarkdownTasks tasksFromFile
+            return $ decodeMarkdownTasks taskFileContent  
         _ -> return []
+
+readTaskFile :: FilePath -> IO Text
+readTaskFile fp = do
+    readAction <- try (TIO.readFile fp) :: IO (Either SomeException Text)
+    case readAction of
+        Left ex-> do
+            when ("invalid byte sequence" `isInfixOf` pack (show ex)) $ do
+                putStrLn "An error occured while decoding the tasks file content, this may happen when any of the tasks has unicode characters and \
+                \none of the Locale environment variables are set."
+                putStrLn "Run any of the following commands to set a Locale environment variable to one that \
+                \handles UTF8:"
+                putStrLn "$ export LC_ALL=C.UTF8"
+                putStrLn "$ export LANG=C.UTF8"
+                putStrLn "$ export LC_CTYPE=C.UTF8"
+            exitFailure
+        Right text -> return text
 
 encodeMarkdownTasks :: [Task] -> Text
 encodeMarkdownTasks tasks = unlines $ map encodeMarkdownTask tasks

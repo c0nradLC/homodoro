@@ -51,12 +51,10 @@ readTasks :: FilePath -> IO [Task]
 readTasks fp = do
     taskFileContent <- readTaskFile fp
     case takeExtension fp of
-        ".json" -> do
-            case decodeStrict $ encodeUtf8 taskFileContent  of
+        ".json" -> case decodeStrict $ encodeUtf8 taskFileContent  of
                 Just tasks -> return tasks
                 Nothing -> return []
-        ".md" -> do
-            return $ decodeMarkdownTasks taskFileContent  
+        ".md" -> return $ decodeMarkdownTasks taskFileContent  
         _ -> return []
 
 readTaskFile :: FilePath -> IO Text
@@ -69,9 +67,9 @@ readTaskFile fp = do
                 \none of the Locale environment variables are set."
                 putStrLn "Run any of the following commands to set a Locale environment variable to one that \
                 \handles UTF8:"
-                putStrLn "$ export LC_ALL=C.UTF8"
-                putStrLn "$ export LANG=C.UTF8"
-                putStrLn "$ export LC_CTYPE=C.UTF8"
+                putStrLn "export LC_ALL=C.UTF8"
+                putStrLn "export LANG=C.UTF8"
+                putStrLn "export LC_CTYPE=C.UTF8"
             exitFailure
         Right text -> return text
 

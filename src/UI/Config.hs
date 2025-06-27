@@ -32,8 +32,8 @@ drawConfig selected cfg = do
                     , str $ configSettingsValueToString $ cfg ^. configValue
                     ]
 
-initialTimerDialog :: Maybe Int -> Timer -> Dialog InitialTimerDialogChoice
-initialTimerDialog _ timer = dialog title (Just (1, options)) 50
+initialTimerDialog :: Timer -> Dialog InitialTimerDialogChoice
+initialTimerDialog timer = dialog title (Just (1, options)) 50
   where
     options = [("Close", CloseInitialTimerDialog), ("Save", SaveInitialTimer)]
     title = case timer of
@@ -51,8 +51,8 @@ drawInitialTimerDialog currentInitialTimer =
         , C.hCenter (padBottom (Pad 1) $ txt "[Down arrow] - Decrease by 1min")
         ]
 
-soundVolumeDialog :: Maybe String -> Maybe Int -> Dialog SoundVolumeDialogChoice
-soundVolumeDialog title _ = dialog title (Just (1, options)) 50
+soundVolumeDialog :: Maybe String -> Dialog SoundVolumeDialogChoice
+soundVolumeDialog title = dialog title (Just (1, options)) 50
   where
     options = [("Close", CloseSoundVolumeDialog), ("Play test audio", PlayTestAudio), ("Save", SaveSoundVolume)]
 

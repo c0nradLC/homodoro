@@ -145,16 +145,16 @@ createAppState = do
                     , _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
                     , _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1
                     , _configFile = configFile
-                    , _initialTimerConfigDialog = initialTimerDialog (Just 0) Pomodoro
+                    , _initialTimerConfigDialog = initialTimerDialog Pomodoro
                     , _tasksFilePath = setTasksFilePath
                     , _tasksFilePathBrowser = initialTasksFilePathBrowser
                     , _timerPopupAlert = setTimerPopupAlert
                     , _timerStartStopSoundVolume = setTimerStartStopSoundVolume
-                    , _timerStartStopSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer start/stop sound volume") $ Just setTimerStartStopSoundVolume
+                    , _timerStartStopSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer start/stop sound volume")
                     , _timerAlertSoundVolume = setAlertSoundVolume
-                    , _timerAlertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume") $ Just setAlertSoundVolume
+                    , _timerAlertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume")
                     , _timerTickSoundVolume = setTimerTickSoundVolume
-                    , _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume") $ Just setTimerTickSoundVolume
+                    , _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume")
                     , _notificationProvider = availableNotificationProvider
                     , _audioProvider = availableAudioProvider
                     , _audioDirectoryPath = setAudioDirectoryPath
@@ -176,11 +176,12 @@ drawUI s = do
     case BF.focusGetCurrent (s ^. focus) of
         currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
-        currentFocus@(Just (InitialTimerDialog timer)) -> do
+        currentFocus@(Just (InitialTimerDialog timer)) -> 
             let currentInitialTimerValue = case timer of
                     Pomodoro -> s ^. timers . pomodoroState . timerInitialValue
                     ShortBreak -> s ^. timers . shortBreakState . timerInitialValue
                     LongBreak -> s ^. timers . longBreakState . timerInitialValue
+            in
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
@@ -190,7 +191,7 @@ drawUI s = do
                             <=> fill ' '
                             <=> drawCommands currentFocus
                 ]
-        Just TimerTickSoundVolumeDialog -> do
+        Just TimerTickSoundVolumeDialog ->
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
@@ -199,7 +200,7 @@ drawUI s = do
                                 (drawSoundVolumeDialog "Current timer tick sound volume" (s ^. timerTickSoundVolume))
                             <=> fill ' '
                 ]
-        Just TimerAlertSoundVolumeDialog -> do
+        Just TimerAlertSoundVolumeDialog ->
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
@@ -208,7 +209,7 @@ drawUI s = do
                                 (drawSoundVolumeDialog "Current timer alert sound volume" (s ^. timerAlertSoundVolume))
                             <=> fill ' '
                 ]
-        Just TimerStartStopSoundVolumeDialog -> do
+        Just TimerStartStopSoundVolumeDialog ->
             [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
@@ -217,7 +218,7 @@ drawUI s = do
                                 (drawSoundVolumeDialog "Current timer start/stop sound volume" (s ^. timerStartStopSoundVolume))
                             <=> fill ' '
                 ]
-        currentFocus@(Just TasksFilePathBrowser) -> do
+        currentFocus@(Just TasksFilePathBrowser) ->
             [ B.border
                     ( C.center $
                         drawConfigList (s ^. configList)
@@ -225,7 +226,7 @@ drawUI s = do
                             <=> drawCommands currentFocus
                     )
                 ]
-        currentFocus@(Just AudioDirectoryPathBrowser) -> do
+        currentFocus@(Just AudioDirectoryPathBrowser) ->
             [ B.border
                     ( C.center $
                         drawConfigList (s ^. configList)
@@ -233,7 +234,7 @@ drawUI s = do
                             <=> drawCommands currentFocus
                     )
                 ]
-        currentFocus -> do
+        currentFocus ->
             [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
     configListL = DV.toList $ BL.listElements (s ^. configList)

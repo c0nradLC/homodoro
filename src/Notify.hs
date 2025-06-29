@@ -1,12 +1,14 @@
 module Notify (showNotification)
 where
-import Libnotify.C.NotifyNotification
-    ( Timeout(Custom),
-      notify_notification_new,
-      notify_notification_set_timeout,
-      notify_notification_show )
+
 import Control.Monad (when)
-import Libnotify.C.Notify (notify_is_initted, notify_init)
+import Libnotify.C.Notify (notify_init, notify_is_initted)
+import Libnotify.C.NotifyNotification (
+    Timeout (Custom),
+    notify_notification_new,
+    notify_notification_set_timeout,
+    notify_notification_show,
+ )
 
 showNotification :: String -> IO ()
 showNotification msg = do

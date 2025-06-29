@@ -14,7 +14,7 @@ module Config (
     configFilePathValue,
     initialTimerSettingL,
     configIntValue,
-    showPercentage
+    showPercentage,
 )
 where
 

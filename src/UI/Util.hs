@@ -2,7 +2,7 @@ module UI.Util (changeFocus) where
 
 import Brick (EventM)
 import qualified Brick.Focus as BF
-import Control.Lens ( (^.), (.=) )
+import Control.Lens ((.=), (^.))
 import Types (AppState, Name, focus)
 
 changeFocus :: Name -> AppState -> EventM Name AppState ()

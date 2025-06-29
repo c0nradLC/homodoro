@@ -56,7 +56,7 @@ module Types (
     shortBreakState,
     longBreakState,
     timerCurrentValue,
-    timerInitialValue
+    timerInitialValue,
 )
 where
 

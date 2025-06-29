@@ -1,7 +1,8 @@
 module SDL (playAudio) where
-import qualified SDL.Mixer as Mix
+
 import Control.Monad (when)
 import qualified Data.ByteString as BS
+import qualified SDL.Mixer as Mix
 
 playAudio :: FilePath -> Int -> IO ()
 playAudio fp vol = do

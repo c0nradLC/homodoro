@@ -63,6 +63,7 @@ import Types (
     timerAlertSoundVolumeConfigDialog,
     timerAlertSoundVolumeSetting,
     timerInitialValue,
+    timerPopupAlert,
     timerPopupAlertSetting,
     timerStartStopSoundVolume,
     timerStartStopSoundVolumeConfigDialog,
@@ -70,7 +71,7 @@ import Types (
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
     timerTickSoundVolumeSetting,
-    timers, timerPopupAlert,
+    timers,
  )
 import UI.Attributes (
     attributes,
@@ -170,13 +171,12 @@ drawUI s = do
     case BF.focusGetCurrent (s ^. focus) of
         currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
-        currentFocus@(Just (InitialTimerDialog timer)) -> 
+        currentFocus@(Just (InitialTimerDialog timer)) ->
             let currentInitialTimerValue = case timer of
                     Pomodoro -> s ^. timers . pomodoroState . timerInitialValue
                     ShortBreak -> s ^. timers . shortBreakState . timerInitialValue
                     LongBreak -> s ^. timers . longBreakState . timerInitialValue
-            in
-            [ B.border $
+             in [ B.border $
                     C.center $
                         drawConfigList (s ^. configList)
                             <=> renderDialog
@@ -187,47 +187,47 @@ drawUI s = do
                 ]
         Just TimerTickSoundVolumeDialog ->
             [ B.border $
-                    C.center $
-                        drawConfigList (s ^. configList)
-                            <=> renderDialog
-                                (s ^. timerTickSoundVolumeConfigDialog)
-                                (drawSoundVolumeDialog "Current timer tick sound volume" (s ^. timerTickSoundVolume))
-                            <=> fill ' '
-                ]
+                C.center $
+                    drawConfigList (s ^. configList)
+                        <=> renderDialog
+                            (s ^. timerTickSoundVolumeConfigDialog)
+                            (drawSoundVolumeDialog "Current timer tick sound volume" (s ^. timerTickSoundVolume))
+                        <=> fill ' '
+            ]
         Just TimerAlertSoundVolumeDialog ->
             [ B.border $
-                    C.center $
-                        drawConfigList (s ^. configList)
-                            <=> renderDialog
-                                (s ^. timerAlertSoundVolumeConfigDialog)
-                                (drawSoundVolumeDialog "Current timer alert sound volume" (s ^. timerAlertSoundVolume))
-                            <=> fill ' '
-                ]
+                C.center $
+                    drawConfigList (s ^. configList)
+                        <=> renderDialog
+                            (s ^. timerAlertSoundVolumeConfigDialog)
+                            (drawSoundVolumeDialog "Current timer alert sound volume" (s ^. timerAlertSoundVolume))
+                        <=> fill ' '
+            ]
         Just TimerStartStopSoundVolumeDialog ->
             [ B.border $
-                    C.center $
-                        drawConfigList (s ^. configList)
-                            <=> renderDialog
-                                (s ^. timerStartStopSoundVolumeConfigDialog)
-                                (drawSoundVolumeDialog "Current timer start/stop sound volume" (s ^. timerStartStopSoundVolume))
-                            <=> fill ' '
-                ]
+                C.center $
+                    drawConfigList (s ^. configList)
+                        <=> renderDialog
+                            (s ^. timerStartStopSoundVolumeConfigDialog)
+                            (drawSoundVolumeDialog "Current timer start/stop sound volume" (s ^. timerStartStopSoundVolume))
+                        <=> fill ' '
+            ]
         currentFocus@(Just TasksFilePathBrowser) ->
             [ B.border
-                    ( C.center $
-                        drawConfigList (s ^. configList)
-                            <=> B.border (renderFileBrowser True (s ^. tasksFilePathBrowser))
-                            <=> drawCommands currentFocus
-                    )
-                ]
+                ( C.center $
+                    drawConfigList (s ^. configList)
+                        <=> B.border (renderFileBrowser True (s ^. tasksFilePathBrowser))
+                        <=> drawCommands currentFocus
+                )
+            ]
         currentFocus@(Just AudioDirectoryPathBrowser) ->
             [ B.border
-                    ( C.center $
-                        drawConfigList (s ^. configList)
-                            <=> B.border (renderFileBrowser True (s ^. audioDirectoryPathBrowser))
-                            <=> drawCommands currentFocus
-                    )
-                ]
+                ( C.center $
+                    drawConfigList (s ^. configList)
+                        <=> B.border (renderFileBrowser True (s ^. audioDirectoryPathBrowser))
+                        <=> drawCommands currentFocus
+                )
+            ]
         currentFocus ->
             [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
@@ -248,7 +248,8 @@ drawUI s = do
                 strWrap
                     "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
             _ -> emptyWidget
-    drawHeader state = str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
-                <=> str ("Timer tick volume: " ++ showPercentage (state ^. timerTickSoundVolume))
-                <=> str ("Timer alert volume: " ++ showPercentage (state ^. timerAlertSoundVolume))
-                <=> str ("Timer start/stop volume: " ++ showPercentage (state ^. timerStartStopSoundVolume))
+    drawHeader state =
+        str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
+            <=> str ("Timer tick volume: " ++ showPercentage (state ^. timerTickSoundVolume))
+            <=> str ("Timer alert volume: " ++ showPercentage (state ^. timerAlertSoundVolume))
+            <=> str ("Timer start/stop volume: " ++ showPercentage (state ^. timerStartStopSoundVolume))

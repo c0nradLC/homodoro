@@ -17,8 +17,6 @@ module Types (
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
-    AudioProvider (..),
-    NotificationProvider (..),
     SoundVolumeDialogChoice (..),
     timerRunning,
     pomodoroCounter,
@@ -46,8 +44,6 @@ module Types (
     timerTickSoundVolume,
     timerTickSoundVolumeSetting,
     timerTickSoundVolumeConfigDialog,
-    notificationProvider,
-    audioProvider,
     audioDirectoryPath,
     audioDirectoryPathSetting,
     audioDirectoryPathBrowser,
@@ -60,7 +56,7 @@ module Types (
     shortBreakState,
     longBreakState,
     timerCurrentValue,
-    timerInitialValue,
+    timerInitialValue
 )
 where
 
@@ -126,22 +122,6 @@ data Audio
     | TimerTick
     | TimerStartStop
     deriving (Show, Eq)
-
-data AudioProvider
-    = MPV
-    | FFPlay
-instance (Show AudioProvider) where
-    show :: AudioProvider -> String
-    show MPV = "mpv"
-    show FFPlay = "ffplay"
-
-data NotificationProvider
-    = NotifySend
-    | Zenity
-instance (Show NotificationProvider) where
-    show :: NotificationProvider -> String
-    show NotifySend = "notify-send"
-    show Zenity = "zenity"
 
 data Task = Task
     { _taskContent :: Text
@@ -218,8 +198,6 @@ data AppState = AppState
     , _timerAlertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     , _timerTickSoundVolume :: Int
     , _timerTickSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
-    , _notificationProvider :: Maybe NotificationProvider
-    , _audioProvider :: Maybe AudioProvider
     , _audioDirectoryPath :: FilePath
     , _audioDirectoryPathBrowser :: FileBrowser Name
     }

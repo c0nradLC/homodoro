@@ -32,7 +32,8 @@ executable homodoro
       Task
       Types
       Config
-      Process
+      Notify
+      SDL
   hs-source-dirs:
       app
      ,src
@@ -49,5 +50,6 @@ executable homodoro
     , mtl <3
     , vector <1
     , vty <6.0
-    , process
+    , libnotify <=0.2.1
+    , sdl2-mixer <=1.2.0.0
   default-language: Haskell2010

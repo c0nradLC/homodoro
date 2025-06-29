@@ -27,7 +27,7 @@ import Brick.Widgets.FileBrowser (
     selectNonDirectories,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, findConfigSetting, maybeConfigBoolValue, readConfig, showBool, showPercentage)
+import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, readConfig, showBool, showPercentage)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
@@ -36,11 +36,9 @@ import Control.Monad.State (
  )
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
-import Process (getAudioProvider, getNotificationProvider)
 import Task (readTasks)
 import Types (
     AppState (..),
-    ConfigSettingValue (..),
     Name (..),
     TaskAction (Edit, Insert),
     Tick (..),
@@ -72,7 +70,7 @@ import Types (
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
     timerTickSoundVolumeSetting,
-    timers,
+    timers, timerPopupAlert,
  )
 import UI.Attributes (
     attributes,
@@ -116,8 +114,6 @@ createAppState = do
      in do
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
             initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
-            availableNotificationProvider <- getNotificationProvider
-            availableAudioProvider <- getAudioProvider
             return
                 AppState
                     { _timerRunning = False
@@ -155,8 +151,6 @@ createAppState = do
                     , _timerAlertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume")
                     , _timerTickSoundVolume = setTimerTickSoundVolume
                     , _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume")
-                    , _notificationProvider = availableNotificationProvider
-                    , _audioProvider = availableAudioProvider
                     , _audioDirectoryPath = setAudioDirectoryPath
                     , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
                     }
@@ -237,7 +231,6 @@ drawUI s = do
         currentFocus ->
             [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
-    configListL = DV.toList $ BL.listElements (s ^. configList)
     drawCommands currentFocus =
         case currentFocus of
             Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [INS]: create task"
@@ -255,9 +248,7 @@ drawUI s = do
                 strWrap
                     "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
             _ -> emptyWidget
-    drawHeader state = do
-        let popupEnabled          = maybeConfigBoolValue $ findConfigSetting (ConfigTimerPopupAlert False) configListL
-         in str ("Timer popup: " ++ showBool popupEnabled)
+    drawHeader state = str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
                 <=> str ("Timer tick volume: " ++ showPercentage (state ^. timerTickSoundVolume))
                 <=> str ("Timer alert volume: " ++ showPercentage (state ^. timerAlertSoundVolume))
                 <=> str ("Timer start/stop volume: " ++ showPercentage (state ^. timerStartStopSoundVolume))

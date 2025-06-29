@@ -1,6 +1,6 @@
 { mkDerivation, aeson, base, brick, bytestring, haskell-language-server
-, directory, filepath, lens, lib, mtl, vector, vty
-, text, process
+, directory, filepath, lens, lib, mtl, vector, vty, libnotify
+, text, process, sdl2-mixer
 }:
 mkDerivation {
   pname = "homodoro";
@@ -9,8 +9,8 @@ mkDerivation {
   isExecutable = true;
   executableHaskellDepends = [
     aeson base brick bytestring directory
-    filepath lens mtl vector
-    vty text process
+    filepath lens mtl vector vty text
+    libnotify sdl2-mixer
   ];
 
   homepage = "https://github.com/c0nradLC/homodoro#readme";

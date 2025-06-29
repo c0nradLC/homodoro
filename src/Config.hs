@@ -8,8 +8,6 @@ module Config (
     updateConfig,
     configFileSettings,
     configSettingsValueToString,
-    maybeConfigIntValue,
-    maybeConfigBoolValue,
     configBoolValue,
     findConfigSetting,
     showBool,
@@ -43,7 +41,7 @@ defaultConfig = do
             , _shortBreakInitialTimerSetting = ConfigSetting{_configLabel = "Short break initial timer", _configValue = ConfigInitialTimer ShortBreak 300}
             , _longBreakInitialTimerSetting = ConfigSetting{_configLabel = "Long break initial timer", _configValue = ConfigInitialTimer LongBreak 900}
             , _timerStartStopSoundVolumeSetting = ConfigSetting{_configLabel = "Timer start/stop sound volume", _configValue = ConfigTimerStartStopSoundVolume 60}
-            , _tasksFilePathSetting = ConfigSetting{_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks"}
+            , _tasksFilePathSetting = ConfigSetting{_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks.json"}
             , _timerPopupAlertSetting = ConfigSetting{_configLabel = "Timer popup alert", _configValue = ConfigTimerPopupAlert True}
             , _timerAlertSoundVolumeSetting = ConfigSetting{_configLabel = "Timer alert sound volume", _configValue = ConfigTimerAlertSoundVolume 60}
             , _timerTickSoundVolumeSetting = ConfigSetting{_configLabel = "Timer tick sound volume", _configValue = ConfigTimerTickSoundVolume 60}
@@ -137,13 +135,6 @@ showBool true = if true then "Enabled" else "Disabled"
 showPercentage :: Int -> String
 showPercentage val = show val <> "%"
 
-maybeConfigIntValue :: Maybe ConfigSetting -> Int
-maybeConfigIntValue (Just (ConfigSetting _ (ConfigInitialTimer _ initialTimer))) = initialTimer
-maybeConfigIntValue (Just (ConfigSetting _ (ConfigTimerAlertSoundVolume timerAlertSoundVolume))) = timerAlertSoundVolume
-maybeConfigIntValue (Just (ConfigSetting _ (ConfigTimerTickSoundVolume timerTickSoundVolume))) = timerTickSoundVolume
-maybeConfigIntValue (Just (ConfigSetting _ (ConfigTimerStartStopSoundVolume timerStartStopSoundVolume))) = timerStartStopSoundVolume
-maybeConfigIntValue _ = 0
-
 configIntValue :: ConfigSetting -> Int
 configIntValue (ConfigSetting _ (ConfigInitialTimer _ initialTimer)) = initialTimer
 configIntValue (ConfigSetting _ (ConfigTimerAlertSoundVolume timerAlertSoundVolume)) = timerAlertSoundVolume
@@ -155,10 +146,6 @@ configFilePathValue :: ConfigSetting -> FilePath
 configFilePathValue (ConfigSetting _ (ConfigTasksFilePath path)) = path
 configFilePathValue (ConfigSetting _ (ConfigAudioDirectoryPath path)) = path
 configFilePathValue _ = FP.empty
-
-maybeConfigBoolValue :: Maybe ConfigSetting -> Bool
-maybeConfigBoolValue (Just (ConfigSetting _ (ConfigTimerPopupAlert value))) = value
-maybeConfigBoolValue _ = False
 
 configBoolValue :: ConfigSetting -> Bool
 configBoolValue (ConfigSetting _ (ConfigTimerPopupAlert value)) = value

@@ -27,7 +27,7 @@ import Brick.Widgets.FileBrowser (
     selectNonDirectories,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, readConfig, showBool, showPercentage)
+import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, readConfig, showBool, soundVolumePercentage)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
@@ -250,6 +250,6 @@ drawUI s = do
             _ -> emptyWidget
     drawHeader state =
         str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
-            <=> str ("Timer tick volume: " ++ showPercentage (state ^. timerTickSoundVolume))
-            <=> str ("Timer alert volume: " ++ showPercentage (state ^. timerAlertSoundVolume))
-            <=> str ("Timer start/stop volume: " ++ showPercentage (state ^. timerStartStopSoundVolume))
+            <=> str ("Timer tick volume: " ++ soundVolumePercentage (state ^. timerTickSoundVolume))
+            <=> str ("Timer alert volume: " ++ soundVolumePercentage (state ^. timerAlertSoundVolume))
+            <=> str ("Timer start/stop volume: " ++ soundVolumePercentage (state ^. timerStartStopSoundVolume))

@@ -14,7 +14,7 @@ module Config (
     configFilePathValue,
     initialTimerSettingL,
     configIntValue,
-    showPercentage,
+    soundVolumePercentage
 )
 where
 
@@ -41,7 +41,7 @@ defaultConfig = do
             , _shortBreakInitialTimerSetting = ConfigSetting{_configLabel = "Short break initial timer", _configValue = ConfigInitialTimer ShortBreak 300}
             , _longBreakInitialTimerSetting = ConfigSetting{_configLabel = "Long break initial timer", _configValue = ConfigInitialTimer LongBreak 900}
             , _timerStartStopSoundVolumeSetting = ConfigSetting{_configLabel = "Timer start/stop sound volume", _configValue = ConfigTimerStartStopSoundVolume 60}
-            , _tasksFilePathSetting = ConfigSetting{_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks.json"}
+            , _tasksFilePathSetting = ConfigSetting{_configLabel = "Tasks file path", _configValue = ConfigTasksFilePath $ xdgDataPath FP.</> "homodoro" FP.</> "tasks.md"}
             , _timerPopupAlertSetting = ConfigSetting{_configLabel = "Timer popup alert", _configValue = ConfigTimerPopupAlert True}
             , _timerAlertSoundVolumeSetting = ConfigSetting{_configLabel = "Timer alert sound volume", _configValue = ConfigTimerAlertSoundVolume 60}
             , _timerTickSoundVolumeSetting = ConfigSetting{_configLabel = "Timer tick sound volume", _configValue = ConfigTimerTickSoundVolume 60}
@@ -97,8 +97,8 @@ initialTimerSettingL timer = case timer of
 
 configFileSettings :: ConfigFile -> [ConfigSetting]
 configFileSettings configFile =
-    [ configFile ^. timerAlertSoundVolumeSetting
-    , configFile ^. timerTickSoundVolumeSetting
+    [ configFile ^. timerTickSoundVolumeSetting
+    , configFile ^. timerAlertSoundVolumeSetting
     , configFile ^. timerStartStopSoundVolumeSetting
     , configFile ^. pomodoroInitialTimerSetting
     , configFile ^. shortBreakInitialTimerSetting
@@ -124,16 +124,16 @@ configSettingsValueToString :: ConfigSettingValue -> String
 configSettingsValueToString (ConfigInitialTimer _ i) = formatTimer i
 configSettingsValueToString (ConfigTasksFilePath p) = show p
 configSettingsValueToString (ConfigTimerPopupAlert b) = showBool b
-configSettingsValueToString (ConfigTimerAlertSoundVolume vol) = showPercentage vol
-configSettingsValueToString (ConfigTimerTickSoundVolume vol) = showPercentage vol
-configSettingsValueToString (ConfigTimerStartStopSoundVolume vol) = showPercentage vol
+configSettingsValueToString (ConfigTimerAlertSoundVolume vol) = soundVolumePercentage vol
+configSettingsValueToString (ConfigTimerTickSoundVolume vol) = soundVolumePercentage vol
+configSettingsValueToString (ConfigTimerStartStopSoundVolume vol) = soundVolumePercentage vol
 configSettingsValueToString (ConfigAudioDirectoryPath p) = show p
 
 showBool :: Bool -> String
 showBool true = if true then "Enabled" else "Disabled"
 
-showPercentage :: Int -> String
-showPercentage val = show val <> "%"
+soundVolumePercentage :: Int -> String
+soundVolumePercentage vol = show (round ((fromIntegral vol / 128 :: Double) * 100) :: Int) ++ "%"
 
 configIntValue :: ConfigSetting -> Int
 configIntValue (ConfigSetting _ (ConfigInitialTimer _ initialTimer)) = initialTimer

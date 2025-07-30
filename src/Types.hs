@@ -17,6 +17,7 @@ module Types (
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
+    AudioCache(..),
     SoundVolumeDialogChoice (..),
     timerRunning,
     pomodoroCounter,
@@ -47,6 +48,7 @@ module Types (
     audioDirectoryPath,
     audioDirectoryPathSetting,
     audioDirectoryPathBrowser,
+    audioCache,
     configFile,
     timerPopupAlert,
     timerStartStopSoundVolume,
@@ -67,7 +69,10 @@ import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
 import Control.Lens (makeLenses)
 import Data.Aeson.TH (defaultOptions, deriveJSON)
+import Data.IORef (IORef)
+import Data.Map (Map)
 import Data.Text (Text)
+import qualified SDL.Mixer as Mix
 
 data Timer
     = Pomodoro
@@ -122,6 +127,11 @@ data Audio
     | TimerTick
     | TimerStartStop
     deriving (Show, Eq)
+
+data AudioCache = AudioCache
+    { _audioCacheRef :: IORef (Map String Mix.Chunk)
+    , _isInitialized :: IORef Bool
+    }
 
 data Task = Task
     { _taskContent :: Text
@@ -200,5 +210,6 @@ data AppState = AppState
     , _timerTickSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice
     , _audioDirectoryPath :: FilePath
     , _audioDirectoryPathBrowser :: FileBrowser Name
+    , _audioCache :: AudioCache
     }
 makeLenses ''AppState

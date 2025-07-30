@@ -71,7 +71,7 @@ import Types (
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
     timerTickSoundVolumeSetting,
-    timers,
+    timers, AudioCache (AudioCache),
  )
 import UI.Attributes (
     attributes,
@@ -80,11 +80,15 @@ import UI.Config (drawConfigList, drawInitialTimerDialog, drawSoundVolumeDialog,
 import UI.EventHandler (handleEvent)
 import UI.Task (drawTaskEditor, drawTaskList)
 import UI.Timer (drawTimers)
+import SDL (initializeAudio, preloadAllAudio)
+import qualified Data.Map as Map
+import Data.IORef (newIORef)
 
 uiMain :: IO ()
 uiMain = do
     eventChan <- newBChan 10
     createProgramFileAndDirectoriesIfNotExists
+    _ <- initializeAudio
     _ <- forkIO $ forever $ do
         writeBChan eventChan Tick
         threadDelay 1000000
@@ -97,6 +101,8 @@ createAppState :: IO AppState
 createAppState = do
     configFile <- readConfig
     tasks <- readTasks $ configFilePathValue $ configFile ^. tasksFilePathSetting
+    cacheRef <- newIORef Map.empty
+    initRef <- newIORef True
     let setTimerStartStopSoundVolume = configIntValue $ configFile ^. timerStartStopSoundVolumeSetting
         setAudioDirectoryPath = configFilePathValue $ configFile ^. audioDirectoryPathSetting
         setPomodoroInitialTimer = configIntValue $ configFile ^. pomodoroInitialTimerSetting
@@ -106,6 +112,7 @@ createAppState = do
         setAlertSoundVolume = configIntValue $ configFile ^. timerAlertSoundVolumeSetting
         setTimerTickSoundVolume = configIntValue $ configFile ^. timerTickSoundVolumeSetting
         setTimerPopupAlert = configBoolValue $ configFile ^. timerPopupAlertSetting
+        initialAudioManager = AudioCache cacheRef initRef
         setTimerValues =
             Timers
                 { _pomodoroState = TimerState{_timerCurrentValue = setPomodoroInitialTimer, _timerInitialValue = setPomodoroInitialTimer}
@@ -115,6 +122,7 @@ createAppState = do
      in do
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
             initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
+            _ <- preloadAllAudio initialAudioManager setAudioDirectoryPath
             return
                 AppState
                     { _timerRunning = False
@@ -154,6 +162,7 @@ createAppState = do
                     , _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume")
                     , _audioDirectoryPath = setAudioDirectoryPath
                     , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
+                    , _audioCache = initialAudioManager
                     }
 
 app :: App AppState Tick Name

@@ -1,11 +1,11 @@
-module SDL (initializeAudio, cleanupAudio, preloadAudio, preloadAllAudio, playAudio) where
+module SDL (initializeAudio, cleanupAudio, closeSDL, preloadAudio, preloadAllAudio, playAudio) where
 
-import Control.Monad (when, unless)
+import Control.Monad (unless)
 import qualified Data.ByteString as BS
 import qualified SDL.Mixer as Mix
-import Types (AudioCache (AudioCache, _audioCacheRef, _isInitialized), Audio (TimerAlert, TimerTick, TimerStartStop))
+import Types (AudioCache (AudioCache, _audioCacheRef), Audio (TimerAlert, TimerTick, TimerStartStop))
 import qualified Data.Map as Map
-import Data.IORef (newIORef, readIORef, writeIORef, modifyIORef)
+import Data.IORef (newIORef, readIORef, modifyIORef, writeIORef)
 import System.Directory (listDirectory)
 import Data.Char (toLower)
 import System.FilePath (takeBaseName, (</>))
@@ -15,18 +15,18 @@ initializeAudio = do
     Mix.initialize [Mix.InitMP3]
     Mix.openAudio defaultAudio 256
     cacheRef <- newIORef Map.empty
-    initRef <- newIORef True
-    return $ AudioCache cacheRef initRef
+    return $ AudioCache cacheRef
 
 cleanupAudio :: AudioCache -> IO ()
 cleanupAudio manager = do
-    initialized <- readIORef (_isInitialized manager)
+    cache <- readIORef (_audioCacheRef manager)
+    mapM_ Mix.free (Map.elems cache)
+    writeIORef (_audioCacheRef manager) Map.empty
+
+closeSDL :: IO ()
+closeSDL = do
     Mix.closeAudio
     Mix.quit
-    when initialized $ do
-        cache <- readIORef (_audioCacheRef manager)
-        mapM_ Mix.free (Map.elems cache)
-        writeIORef (_isInitialized manager) False
 
 preloadAllAudio :: AudioCache -> FilePath -> IO ()
 preloadAllAudio manager audioDirFp = do
@@ -41,25 +41,21 @@ preloadAllAudio manager audioDirFp = do
 
 preloadAudio :: AudioCache -> FilePath -> String -> IO ()
 preloadAudio manager fp audioKey = do
-    initialized <- readIORef (_isInitialized manager)
-    when initialized $ do
-        cache <- readIORef (_audioCacheRef manager)
-        unless (Map.member audioKey cache) $ do
-            audioFile <- BS.readFile fp
-            audio <- Mix.decode audioFile
-            modifyIORef (_audioCacheRef manager) (Map.insert audioKey audio)
+    cache <- readIORef (_audioCacheRef manager)
+    unless (Map.member audioKey cache) $ do
+        audioFile <- BS.readFile fp
+        audio <- Mix.decode audioFile
+        modifyIORef (_audioCacheRef manager) (Map.insert audioKey audio)
 
 playAudio :: AudioCache -> String -> Int -> IO ()
 playAudio manager audioKey vol = do
-    initialized <- readIORef (_isInitialized manager)
-    when initialized $ do
-        cache <- readIORef (_audioCacheRef manager)
-        case Map.lookup audioKey cache of
-            Just audio -> do
-                Mix.setVolume vol audio
-                _ <- Mix.play audio
-                return ()
-            Nothing -> return ()
+    cache <- readIORef (_audioCacheRef manager)
+    case Map.lookup audioKey cache of
+        Just audio -> do
+            Mix.setVolume vol audio
+            _ <- Mix.play audio
+            return ()
+        Nothing -> return ()
 
 defaultAudio :: Mix.Audio
 defaultAudio =

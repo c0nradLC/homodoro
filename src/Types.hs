@@ -59,6 +59,7 @@ module Types (
     longBreakState,
     timerCurrentValue,
     timerInitialValue,
+    timerCurrentFocus
 )
 where
 
@@ -91,6 +92,7 @@ data Timers = Timers
     { _pomodoroState :: TimerState
     , _shortBreakState :: TimerState
     , _longBreakState :: TimerState
+    , _timerCurrentFocus :: Timer
     }
 makeLenses ''Timers
 
@@ -110,7 +112,7 @@ data TaskAction
 
 data Name
     = TaskEdit TaskAction
-    | TaskList Timer
+    | TaskList
     | Config
     | InitialTimerDialog Timer
     | TasksFilePathBrowser
@@ -128,9 +130,8 @@ data Audio
     | TimerStartStop
     deriving (Show, Eq)
 
-data AudioCache = AudioCache
+newtype AudioCache = AudioCache
     { _audioCacheRef :: IORef (Map String Mix.Chunk)
-    , _isInitialized :: IORef Bool
     }
 
 data Task = Task

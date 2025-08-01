@@ -44,7 +44,7 @@ import Types (
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
     TimerState (TimerState, _timerCurrentValue, _timerInitialValue),
-    Timers (Timers, _longBreakState, _pomodoroState, _shortBreakState),
+    Timers (Timers, _longBreakState, _pomodoroState, _shortBreakState, _timerCurrentFocus),
     audioDirectoryPathBrowser,
     audioDirectoryPathSetting,
     configList,
@@ -102,7 +102,6 @@ createAppState = do
     configFile <- readConfig
     tasks <- readTasks $ configFilePathValue $ configFile ^. tasksFilePathSetting
     cacheRef <- newIORef Map.empty
-    initRef <- newIORef True
     let setTimerStartStopSoundVolume = configIntValue $ configFile ^. timerStartStopSoundVolumeSetting
         setAudioDirectoryPath = configFilePathValue $ configFile ^. audioDirectoryPathSetting
         setPomodoroInitialTimer = configIntValue $ configFile ^. pomodoroInitialTimerSetting
@@ -112,12 +111,13 @@ createAppState = do
         setAlertSoundVolume = configIntValue $ configFile ^. timerAlertSoundVolumeSetting
         setTimerTickSoundVolume = configIntValue $ configFile ^. timerTickSoundVolumeSetting
         setTimerPopupAlert = configBoolValue $ configFile ^. timerPopupAlertSetting
-        initialAudioManager = AudioCache cacheRef initRef
+        initialAudioManager = AudioCache cacheRef
         setTimerValues =
             Timers
                 { _pomodoroState = TimerState{_timerCurrentValue = setPomodoroInitialTimer, _timerInitialValue = setPomodoroInitialTimer}
                 , _shortBreakState = TimerState{_timerCurrentValue = setShortBreakInitialTimer, _timerInitialValue = setShortBreakInitialTimer}
                 , _longBreakState = TimerState{_timerCurrentValue = setLongBreakInitialTimer, _timerInitialValue = setLongBreakInitialTimer}
+                , _timerCurrentFocus = Pomodoro
                 }
      in do
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
@@ -132,9 +132,7 @@ createAppState = do
                     , _taskEditor = editor (TaskEdit Insert) (Just 5) ""
                     , _focus =
                         BF.focusRing
-                            [ TaskList Pomodoro
-                            , TaskList ShortBreak
-                            , TaskList LongBreak
+                            [ TaskList
                             , TaskEdit Insert
                             , TaskEdit Edit
                             , Config
@@ -147,7 +145,7 @@ createAppState = do
                             , TimerStartStopSoundVolumeDialog
                             , AudioDirectoryPathBrowser
                             ]
-                    , _taskList = BL.list (TaskList Pomodoro) (DV.fromList tasks) 1
+                    , _taskList = BL.list TaskList (DV.fromList tasks) 1
                     , _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1
                     , _configFile = configFile
                     , _initialTimerConfigDialog = initialTimerDialog Pomodoro
@@ -244,7 +242,7 @@ drawUI s = do
         case currentFocus of
             Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [INS]: create task"
             Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [INS]: save task"
-            Just (TaskList _) ->
+            Just TaskList ->
                 strWrap
                     "[Q]: quit, [S]: start/stop timer, [R]: reset timer, [SHIFT + TAB]: next timer, \
                     \[T]: add task, [E]: edit task, [Ctrl + C]: toggle task status, \

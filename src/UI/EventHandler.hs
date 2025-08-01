@@ -26,7 +26,7 @@ import Data.Vector (fromList, toList)
 import Graphics.Vty (Event (EvKey), Key (..), Modifier (..))
 import Notify (showNotification)
 import Task (mkTask, readTasks, taskExists, updateTaskList, writeTasks)
-import Types (AppState (), Audio (..), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, pomodoroCounter, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timers, AudioCache, audioCache)
+import Types (AppState (), Audio (..), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, pomodoroCounter, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timers, AudioCache, audioCache, timerCurrentFocus)
 import UI.Config (initialTimerDialog, soundVolumeDialog)
 import UI.Util (changeFocus)
 import Prelude hiding (null, unlines)
@@ -37,16 +37,24 @@ handleEvent ev = do
     s <- get
     let currentFocus = focusGetCurrent $ s ^. focus
     case ev of
-        (AppEvent Tick) -> case currentFocus of
-            Just (TaskList timer) ->
-                case timer of
+        (AppEvent Tick) ->
+            let currentTimer = s ^. timers . timerCurrentFocus
+            in
+            case currentFocus of
+            Just TaskList ->
+                case currentTimer of
                     Pomodoro ->
-                        handleTimerTick s (timers . pomodoroState . timerCurrentValue) "Pomodoro round ended!" timer (if (s ^. pomodoroCyclesCounter) == 3 then TaskList LongBreak else TaskList ShortBreak) $ do
+                        handleTimerTick s (timers . pomodoroState . timerCurrentValue) "Pomodoro round ended!" currentTimer $ do
                             pomodoroCounter .= (s ^. pomodoroCounter) + 1
                             pomodoroCyclesCounter .= (s ^. pomodoroCyclesCounter) + 1
-                    ShortBreak -> handleTimerTick s (timers . shortBreakState . timerCurrentValue) "Short break ended!" timer (TaskList Pomodoro) (pure ())
-                    LongBreak -> handleTimerTick s (timers . longBreakState . timerCurrentValue) "Long break ended!" timer (TaskList Pomodoro) $ do
+                            if (s ^. pomodoroCyclesCounter) == 3 then do
+                                timers . timerCurrentFocus .= LongBreak
+                            else
+                                timers . timerCurrentFocus .= ShortBreak
+                    ShortBreak -> handleTimerTick s (timers . shortBreakState . timerCurrentValue) "Short break ended!" currentTimer (timers . timerCurrentFocus .= Pomodoro)
+                    LongBreak -> handleTimerTick s (timers . longBreakState . timerCurrentValue) "Long break ended!" currentTimer $ do
                         pomodoroCyclesCounter .= 0
+                        timers . timerCurrentFocus .= Pomodoro
             _ -> return ()
         (VtyEvent vev@(EvKey k ms)) -> do
             let selectedListTask = listSelectedElement (s ^. taskList)
@@ -64,9 +72,9 @@ handleEvent ev = do
                         (KIns, []) -> saveTask currentTasks tasksFilePath taskEditorContent selectedTask action s
                         (KEsc, []) -> do
                             taskEditor .= editor (TaskEdit action) (Just 5) ""
-                            changeFocus (TaskList Pomodoro) s
+                            changeFocus TaskList s
                         _ -> zoom taskEditor $ handleEditorEvent ev
-                Just (TaskList timer) -> do
+                Just TaskList -> do
                     case (k, ms) of
                         (KChar 'e', []) -> do
                             let selectedTaskContent = selectedTask ^. taskContent
@@ -85,26 +93,28 @@ handleEvent ev = do
                                         else taskList .= listReplace (fromList updatedTaskList) (Just $ length updatedTaskList - 1) (s ^. taskList)
                         (KChar 't', []) -> changeFocus (TaskEdit Insert) s
                         (KChar 'q', []) -> do
-                            liftIO $ SDL.cleanupAudio (s ^. audioCache)
+                            liftIO $ do
+                                SDL.cleanupAudio (s ^. audioCache)
+                                SDL.closeSDL
                             halt
                         (KChar 's', []) ->
                             when ((s ^. timerStartStopSoundVolume) > 0) $ do
                                 _ <- liftIO $ forkOS $ playAudio (s ^. audioCache) TimerStartStop (s ^. timerStartStopSoundVolume)
                                 timerRunning .= not (s ^. timerRunning)
                         (KChar 'r', []) -> do
-                            resetTimer s timer
+                            resetTimer s (s ^. timers . timerCurrentFocus)
                         (KBackTab, []) -> do
                             timerRunning .= False
-                            case timer of
-                                Pomodoro -> changeFocus (TaskList ShortBreak) s
-                                ShortBreak -> changeFocus (TaskList LongBreak) s
-                                LongBreak -> changeFocus (TaskList Pomodoro) s
+                            case s ^. timers . timerCurrentFocus of
+                                Pomodoro -> timers . timerCurrentFocus .= ShortBreak
+                                ShortBreak -> timers . timerCurrentFocus .= LongBreak
+                                LongBreak -> timers . timerCurrentFocus .= Pomodoro
                         (KChar 'p', []) -> changeFocus Config s
                         _ -> zoom taskList $ handleListEventVi handleListEvent vev
                 Just Config -> do
                     case (k, ms) of
-                        (KChar 'q', []) -> changeFocus (TaskList Pomodoro) s
-                        (KEsc, []) -> changeFocus (TaskList Pomodoro) s
+                        (KChar 'q', []) -> changeFocus TaskList s
+                        (KEsc, []) -> changeFocus TaskList s
                         (KEnter, []) -> do
                             let selectedConfigElement = listSelectedElement (s ^. configList)
                                 (_, selectedConfigSetting) = case selectedConfigElement of
@@ -139,14 +149,14 @@ handleEvent ev = do
                             Just SaveInitialTimer -> do
                                 handleConfigUpdate s (initialTimerSettingL timer) (ConfigInitialTimer timer (s ^. (timerState timer . timerInitialValue))) configList configFile
                             Just CloseInitialTimerDialog -> do
-                                resetTimer s timer
+                                timerState timer . timerInitialValue .= configIntValue (s ^. configFile . initialTimerSettingL timer)
                                 changeFocus Config s
                             _ -> return ()
                         (KChar 'q', []) -> do
-                            resetTimer s timer
+                            timerState timer . timerInitialValue .= configIntValue (s ^. configFile . initialTimerSettingL timer)
                             changeFocus Config s
                         (KEsc, []) -> do
-                            resetTimer s timer
+                            timerState timer . timerInitialValue .= configIntValue (s ^. configFile . initialTimerSettingL timer)
                             changeFocus Config s
                         _ -> zoom initialTimerConfigDialog $ handleDialogEvent vev
                 Just TasksFilePathBrowser ->
@@ -178,7 +188,9 @@ handleEvent ev = do
                                 let updatedAudioDirectoryPath = getWorkingDirectory (s ^. audioDirectoryPathBrowser)
                                 handleConfigUpdate s audioDirectoryPathSetting (ConfigAudioDirectoryPath updatedAudioDirectoryPath) configList configFile
                                 audioDirectoryPath .= updatedAudioDirectoryPath
-                                liftIO $ SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
+                                liftIO $ do
+                                    SDL.cleanupAudio (s ^. audioCache)
+                                    SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
                                 changeFocus Config s
                             (KChar 'c', []) -> do
                                 case fileBrowserCursor (s ^. audioDirectoryPathBrowser) of
@@ -188,7 +200,9 @@ handleEvent ev = do
                                                 let updatedAudioDirectoryPath = fileInfoFilePath fileInfo
                                                 handleConfigUpdate s audioDirectoryPathSetting (ConfigAudioDirectoryPath updatedAudioDirectoryPath) configList configFile
                                                 audioDirectoryPath .= updatedAudioDirectoryPath
-                                                liftIO $ SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
+                                                liftIO $ do
+                                                    SDL.cleanupAudio (s ^. audioCache)
+                                                    SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
                                                 changeFocus Config s
                                             else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
                                     Nothing -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
@@ -271,10 +285,9 @@ handleTimerTick ::
     Lens' AppState Int ->
     String ->
     Timer ->
-    Name ->
     EventM Name AppState () ->
     EventM Name AppState ()
-handleTimerTick s timerL popupText timer nextFocus f =
+handleTimerTick s timerL popupText timer f =
     let currentAlertSoundVolume = s ^. timerAlertSoundVolume
      in when (s ^. timerRunning) $ do
             tickTimer (s ^. audioCache) timerL (s ^. timerL) (s ^. timerTickSoundVolume)
@@ -286,7 +299,6 @@ handleTimerTick s timerL popupText timer nextFocus f =
                 alertRoundEnded popupText $ configBoolValue $ s ^. (configFile . timerPopupAlertSetting)
                 resetTimer s timer
                 f
-                changeFocus nextFocus s
   where
     alertRoundEnded alertMsg timerEndedNotificationIsActive
         | timerEndedNotificationIsActive =
@@ -330,10 +342,10 @@ saveTask tasks fp taskEditorContent selectedTask action s = do
             updatedTasks <- liftIO $ writeTasks fp $ updateTaskList tasks taskOperation
             taskList .= listReplace (fromList updatedTasks) (listSelected $ s ^. taskList) (s ^. taskList)
             clearTaskEditor action
-            changeFocus (TaskList Pomodoro) s
+            changeFocus TaskList s
         else do
             clearTaskEditor action
-            changeFocus (TaskList Pomodoro) s
+            changeFocus TaskList s
 
 clearTaskEditor :: TaskAction -> EventM Name AppState ()
 clearTaskEditor ta = taskEditor .= editor (TaskEdit ta) (Just 5) ""

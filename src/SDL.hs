@@ -28,32 +28,33 @@ closeSDL = do
     Mix.closeAudio
     Mix.quit
 
-preloadAllAudio :: AudioCache -> FilePath -> IO ()
+preloadAllAudio :: AudioCache -> FilePath -> IO [(Audio, FilePath)]
 preloadAllAudio manager audioDirFp = do
     filesInDir <- listDirectory audioDirFp
-    let audioKeys       = map (map toLower . show) [TimerAlert, TimerTick, TimerStartStop]
-        foundTimerFiles = filter (\file -> map toLower (takeBaseName file) `elem` audioKeys) filesInDir
-    mapM_ (\fp -> 
-              let key = map toLower (takeBaseName fp)
-                  fullPath = audioDirFp </> fp
-              in preloadAudio manager fullPath key
-          ) foundTimerFiles
+    let audioTypes = [TimerAlert, TimerTick, TimerStartStop]
+        foundAudioFiles = [(audio, file) | audio <- audioTypes, 
+                                          file <- filesInDir,
+                                          map toLower (takeBaseName file) == map toLower (show audio)]
+    mapM (\(audio, fp) -> 
+              preloadAudio manager (audioDirFp </> fp) audio
+          ) foundAudioFiles
 
-preloadAudio :: AudioCache -> FilePath -> String -> IO ()
-preloadAudio manager fp audioKey = do
+preloadAudio :: AudioCache -> FilePath -> Audio -> IO (Audio, FilePath)
+preloadAudio manager fp audio = do
     cache <- readIORef (_audioCacheRef manager)
-    unless (Map.member audioKey cache) $ do
+    unless (Map.member audio cache) $ do
         audioFile <- BS.readFile fp
-        audio <- Mix.decode audioFile
-        modifyIORef (_audioCacheRef manager) (Map.insert audioKey audio)
+        audioContent <- Mix.decode audioFile
+        modifyIORef (_audioCacheRef manager) (Map.insert audio audioContent)
+    pure (audio, fp)
 
-playAudio :: AudioCache -> String -> Int -> IO ()
-playAudio manager audioKey vol = do
+playAudio :: AudioCache -> Audio -> Int -> IO ()
+playAudio manager audio vol = do
     cache <- readIORef (_audioCacheRef manager)
-    case Map.lookup audioKey cache of
-        Just audio -> do
-            Mix.setVolume vol audio
-            _ <- Mix.play audio
+    case Map.lookup audio cache of
+        Just audioF -> do
+            Mix.setVolume vol audioF
+            _ <- Mix.play audioF
             return ()
         Nothing -> return ()
 

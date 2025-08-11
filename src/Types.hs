@@ -59,7 +59,8 @@ module Types (
     longBreakState,
     timerCurrentValue,
     timerInitialValue,
-    timerCurrentFocus
+    timerCurrentFocus,
+    audioFilesFound
 )
 where
 
@@ -128,10 +129,10 @@ data Audio
     = TimerAlert
     | TimerTick
     | TimerStartStop
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 newtype AudioCache = AudioCache
-    { _audioCacheRef :: IORef (Map String Mix.Chunk)
+    { _audioCacheRef :: IORef (Map Audio Mix.Chunk)
     }
 
 data Task = Task
@@ -212,5 +213,6 @@ data AppState = AppState
     , _audioDirectoryPath :: FilePath
     , _audioDirectoryPathBrowser :: FileBrowser Name
     , _audioCache :: AudioCache
+    , _audioFilesFound :: [Audio]
     }
 makeLenses ''AppState

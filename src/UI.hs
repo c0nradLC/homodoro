@@ -32,7 +32,7 @@ import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
     forever,
-    void,
+    void
  )
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
@@ -71,7 +71,7 @@ import Types (
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
     timerTickSoundVolumeSetting,
-    timers, AudioCache (AudioCache),
+    timers, AudioCache (AudioCache), Audio (TimerTick, TimerAlert, TimerStartStop), audioFilesFound,
  )
 import UI.Attributes (
     attributes,
@@ -122,7 +122,7 @@ createAppState = do
      in do
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
             initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
-            _ <- preloadAllAudio initialAudioManager setAudioDirectoryPath
+            loadedAudio <- preloadAllAudio initialAudioManager setAudioDirectoryPath
             return
                 AppState
                     { _timerRunning = False
@@ -161,6 +161,7 @@ createAppState = do
                     , _audioDirectoryPath = setAudioDirectoryPath
                     , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
                     , _audioCache = initialAudioManager
+                    , _audioFilesFound = map fst loadedAudio
                     }
 
 app :: App AppState Tick Name
@@ -255,8 +256,14 @@ drawUI s = do
                 strWrap
                     "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
             _ -> emptyWidget
-    drawHeader state =
+    drawHeader state = do
         str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
-            <=> str ("Timer tick volume: " ++ soundVolumePercentage (state ^. timerTickSoundVolume))
-            <=> str ("Timer alert volume: " ++ soundVolumePercentage (state ^. timerAlertSoundVolume))
-            <=> str ("Timer start/stop volume: " ++ soundVolumePercentage (state ^. timerStartStopSoundVolume))
+            <=> str ("Timer tick volume: " ++ (if TimerTick `elem` (s ^. audioFilesFound) then
+                                                    soundVolumePercentage (state ^. timerTickSoundVolume)
+                                                else "Audio not found"))
+            <=> str ("Timer alert volume: " ++ (if TimerAlert `elem` (s ^. audioFilesFound) then
+                                                    soundVolumePercentage (state ^. timerAlertSoundVolume)
+                                                else "Audio not found"))
+            <=> str ("Timer start/stop volume: " ++ if TimerStartStop `elem` (s ^. audioFilesFound) then
+                                                    soundVolumePercentage (state ^. timerStartStopSoundVolume)
+                                                    else "Audio not found")

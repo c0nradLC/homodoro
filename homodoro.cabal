@@ -28,12 +28,12 @@ executable homodoro
       UI.EventHandler
       UI.Config
       UI.Task
-      UI.Util
       Task
       Types
       Config
       Notify
       SDL
+      Persistence
   hs-source-dirs:
       app
      ,src

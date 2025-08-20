@@ -7,11 +7,10 @@ import Brick (
     Widget,
     customMain,
     emptyWidget,
-    fill,
     showFirstCursor,
     str,
     strWrap,
-    (<=>),
+    (<=>), (<+>), padLeft, Padding (Max), padBottom,
  )
 import Brick.BChan (newBChan, writeBChan)
 import qualified Brick.Focus as BF
@@ -27,12 +26,12 @@ import Brick.Widgets.FileBrowser (
     selectNonDirectories,
  )
 import qualified Brick.Widgets.List as BL
-import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, createProgramFileAndDirectoriesIfNotExists, readConfig, showBool, soundVolumePercentage)
+import Config (configBoolValue, configFilePathValue, configFileSettings, configIntValue, readConfigFile, showBool, soundVolumePercentage, xdgConfigFilePath, defaultConfig)
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad.State (
     forever,
-    void
+    void, unless
  )
 import qualified Data.Vector as DV
 import qualified Graphics.Vty as V
@@ -43,8 +42,6 @@ import Types (
     TaskAction (Edit, Insert),
     Tick (..),
     Timer (LongBreak, Pomodoro, ShortBreak),
-    TimerState (TimerState, _timerCurrentValue, _timerInitialValue),
-    Timers (Timers, _longBreakState, _pomodoroState, _shortBreakState, _timerCurrentFocus),
     audioDirectoryPathBrowser,
     audioDirectoryPathSetting,
     configList,
@@ -71,7 +68,7 @@ import Types (
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
     timerTickSoundVolumeSetting,
-    timers, AudioCache (AudioCache), Audio (TimerTick, TimerAlert, TimerStartStop), audioFilesFound,
+    timers, AudioCache (AudioCache), Audio (TimerTick, TimerAlert, TimerStartStop), audioFilesFound, pomodoroRoundsPersisted, timersPersisted, persistenceFile, focusedTimePersisted,
  )
 import UI.Attributes (
     attributes,
@@ -79,10 +76,15 @@ import UI.Attributes (
 import UI.Config (drawConfigList, drawInitialTimerDialog, drawSoundVolumeDialog, initialTimerDialog, soundVolumeDialog)
 import UI.EventHandler (handleEvent)
 import UI.Task (drawTaskEditor, drawTaskList)
-import UI.Timer (drawTimers)
+import UI.Timer (drawTimers, formatTimer)
 import SDL (initializeAudio, preloadAllAudio)
 import qualified Data.Map as Map
 import Data.IORef (newIORef)
+import Persistence (readPersistence, xdgPersistenceFilePath, defaultPersistence, writePersistence)
+import qualified System.FilePath as FP
+import qualified System.Directory as D
+import Data.Aeson (encode)
+import Data.ByteString.Lazy.Char8 (unpack)
 
 uiMain :: IO ()
 uiMain = do
@@ -99,7 +101,7 @@ uiMain = do
 
 createAppState :: IO AppState
 createAppState = do
-    configFile <- readConfig
+    configFile <- readConfigFile
     tasks <- readTasks $ configFilePathValue $ configFile ^. tasksFilePathSetting
     cacheRef <- newIORef Map.empty
     let setTimerStartStopSoundVolume = configIntValue $ configFile ^. timerStartStopSoundVolumeSetting
@@ -112,22 +114,16 @@ createAppState = do
         setTimerTickSoundVolume = configIntValue $ configFile ^. timerTickSoundVolumeSetting
         setTimerPopupAlert = configBoolValue $ configFile ^. timerPopupAlertSetting
         initialAudioManager = AudioCache cacheRef
-        setTimerValues =
-            Timers
-                { _pomodoroState = TimerState{_timerCurrentValue = setPomodoroInitialTimer, _timerInitialValue = setPomodoroInitialTimer}
-                , _shortBreakState = TimerState{_timerCurrentValue = setShortBreakInitialTimer, _timerInitialValue = setShortBreakInitialTimer}
-                , _longBreakState = TimerState{_timerCurrentValue = setLongBreakInitialTimer, _timerInitialValue = setLongBreakInitialTimer}
-                , _timerCurrentFocus = Pomodoro
-                }
      in do
+            currentPersistenceFile <- readPersistence (setPomodoroInitialTimer, setShortBreakInitialTimer, setLongBreakInitialTimer)
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
             initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
             loadedAudio <- preloadAllAudio initialAudioManager setAudioDirectoryPath
             return
                 AppState
                     { _timerRunning = False
-                    , _timers = setTimerValues
-                    , _pomodoroCounter = 0
+                    , _timers = currentPersistenceFile ^. timersPersisted
+                    , _pomodoroCounter = currentPersistenceFile ^. pomodoroRoundsPersisted
                     , _pomodoroCyclesCounter = 0
                     , _taskEditor = editor (TaskEdit Insert) (Just 5) ""
                     , _focus =
@@ -162,6 +158,7 @@ createAppState = do
                     , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
                     , _audioCache = initialAudioManager
                     , _audioFilesFound = map fst loadedAudio
+                    , _persistenceFile = currentPersistenceFile
                     }
 
 app :: App AppState Tick Name
@@ -179,46 +176,37 @@ drawUI s = do
     case BF.focusGetCurrent (s ^. focus) of
         currentFocus@(Just (TaskEdit _)) -> [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList) <=> drawTaskEditor s) <=> drawCommands currentFocus]
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
-        currentFocus@(Just (InitialTimerDialog timer)) ->
+        Just (InitialTimerDialog timer) ->
             let currentInitialTimerValue = case timer of
                     Pomodoro -> s ^. timers . pomodoroState . timerInitialValue
                     ShortBreak -> s ^. timers . shortBreakState . timerInitialValue
                     LongBreak -> s ^. timers . longBreakState . timerInitialValue
-             in [ B.border $
-                    C.center $
-                        drawConfigList (s ^. configList)
-                            <=> renderDialog
+             in [ B.border $ drawConfigList (s ^. configList) <=>
+                        padBottom Max
+                            (renderDialog
                                 (s ^. initialTimerConfigDialog)
-                                (drawInitialTimerDialog currentInitialTimerValue)
-                            <=> fill ' '
-                            <=> drawCommands currentFocus
+                                (drawInitialTimerDialog currentInitialTimerValue))
                 ]
         Just TimerTickSoundVolumeDialog ->
-            [ B.border $
-                C.center $
-                    drawConfigList (s ^. configList)
-                        <=> renderDialog
+            [ B.border $ drawConfigList (s ^. configList) <=>
+                    padBottom Max
+                        (renderDialog
                             (s ^. timerTickSoundVolumeConfigDialog)
-                            (drawSoundVolumeDialog "Current timer tick sound volume" (s ^. timerTickSoundVolume))
-                        <=> fill ' '
+                            (drawSoundVolumeDialog "Current timer tick sound volume" (s ^. timerTickSoundVolume)))
             ]
         Just TimerAlertSoundVolumeDialog ->
-            [ B.border $
-                C.center $
-                    drawConfigList (s ^. configList)
-                        <=> renderDialog
+            [ B.border $ drawConfigList (s ^. configList) <=>
+                    padBottom Max
+                        (renderDialog
                             (s ^. timerAlertSoundVolumeConfigDialog)
-                            (drawSoundVolumeDialog "Current timer alert sound volume" (s ^. timerAlertSoundVolume))
-                        <=> fill ' '
+                            (drawSoundVolumeDialog "Current timer alert sound volume" (s ^. timerAlertSoundVolume)))
             ]
         Just TimerStartStopSoundVolumeDialog ->
-            [ B.border $
-                C.center $
-                    drawConfigList (s ^. configList)
-                        <=> renderDialog
+            [ B.border $ drawConfigList (s ^. configList) <=>
+                    padBottom Max
+                        (renderDialog
                             (s ^. timerStartStopSoundVolumeConfigDialog)
-                            (drawSoundVolumeDialog "Current timer start/stop sound volume" (s ^. timerStartStopSoundVolume))
-                        <=> fill ' '
+                            (drawSoundVolumeDialog "Current timer start/stop sound volume" (s ^. timerStartStopSoundVolume)))
             ]
         currentFocus@(Just TasksFilePathBrowser) ->
             [ B.border
@@ -257,7 +245,7 @@ drawUI s = do
                     "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
             _ -> emptyWidget
     drawHeader state = do
-        str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
+            str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
             <=> str ("Timer tick volume: " ++ (if TimerTick `elem` (s ^. audioFilesFound) then
                                                     soundVolumePercentage (state ^. timerTickSoundVolume)
                                                 else "Audio not found"))
@@ -266,4 +254,28 @@ drawUI s = do
                                                 else "Audio not found"))
             <=> str ("Timer start/stop volume: " ++ if TimerStartStop `elem` (s ^. audioFilesFound) then
                                                     soundVolumePercentage (state ^. timerStartStopSoundVolume)
-                                                    else "Audio not found")
+                                                    else "Audio not found") <+>
+            padLeft Max (str ("Focused time today: " ++ formatTimer (state ^. persistenceFile . focusedTimePersisted)))
+
+createProgramFileAndDirectoriesIfNotExists :: IO ()
+createProgramFileAndDirectoriesIfNotExists = do
+    configFilePath <- xdgConfigFilePath
+    configFileExists <- D.doesFileExist configFilePath
+    defaultConfigFile <- defaultConfig
+    persistenceFilePath <- xdgPersistenceFilePath
+    persistenceFileExists <- D.doesFileExist persistenceFilePath
+    D.createDirectoryIfMissing True (FP.takeDirectory configFilePath)
+    unless configFileExists $ do
+        let tasksFilePath = configFilePathValue $ defaultConfigFile ^. tasksFilePathSetting
+        writeFile configFilePath $ unpack $ encode defaultConfigFile
+        D.createDirectoryIfMissing True $ configFilePathValue $ defaultConfigFile ^. audioDirectoryPathSetting
+        D.createDirectoryIfMissing True (FP.takeDirectory $ configFilePathValue $ defaultConfigFile ^. audioDirectoryPathSetting)
+        taskFileExists <- D.doesFileExist tasksFilePath
+        unless taskFileExists $ do writeFile tasksFilePath ""
+    defaultPersistenceFile <- defaultPersistence (
+        configIntValue $ defaultConfigFile ^. pomodoroInitialTimerSetting,
+        configIntValue $ defaultConfigFile ^. shortBreakInitialTimerSetting,
+        configIntValue $ defaultConfigFile ^. longBreakInitialTimerSetting
+        )
+    D.createDirectoryIfMissing True (FP.takeDirectory persistenceFilePath)
+    unless persistenceFileExists $ writePersistence defaultPersistenceFile

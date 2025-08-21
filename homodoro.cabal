@@ -7,7 +7,7 @@ homepage:       https://github.com/c0nradLC/homodoro#readme
 bug-reports:    https://github.com/c0nradLC/homodoro/issues
 author:         Leonardo Palhano Conrado
 maintainer:     l.conrado10@gmail.com
-copyright:      2024 Leonardo Conrado
+copyright:      2025 Leonardo Conrado
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -22,15 +22,18 @@ source-repository head
 executable homodoro
   main-is: Main.hs
   other-modules:
-      UI.UI
+      UI
       UI.Attributes
       UI.Timer
       UI.EventHandler
+      UI.Config
+      UI.Task
+      UI.Util
       Task
-      Notify
-      Resources
+      Types
       Config
-      Timer
+      Notify
+      SDL
   hs-source-dirs:
       app
      ,src
@@ -38,19 +41,16 @@ executable homodoro
   build-depends:
       aeson <3
     , base >=4.7 && <5
-    , brick <3
-    , bytestring <1
-    , data-default-class <1
+    , brick <2
+    , text <1.3
+    , bytestring <= 0.11.4.0
     , directory <= 1.3.6.2
-    , file-embed <0.1
     , filepath <2
     , lens <6
     , mtl <3
-    , sdl2 <3
-    , sdl2-mixer <2
-    , temporary <2
-    , text <3
     , vector <1
     , vty <6.0
-    , libnotify <2
+    , libnotify <=0.2.1
+    , sdl2-mixer <=1.2.0.0
+    , containers <= 0.6.5.1
   default-language: Haskell2010

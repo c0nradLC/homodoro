@@ -1,60 +1,119 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Task
-  ( createTasksFileIfNotExists,
+module Task (
     taskExists,
-    getTasks,
+    readTasks,
     mkTask,
     updateTaskList,
-  )
+    writeTasks,
+)
 where
 
-import qualified Config as CFG
-import Control.Lens (filtered, over, traversed, view, (%~), (.~))
-import Control.Monad (unless)
-import Data.Aeson (decode, encode)
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Text as T
-import Resources (Task (..), TaskListOperation (..), TaskListUpdate, taskCompleted, taskContent)
-import qualified System.Directory as D
-import qualified System.FilePath as FP
+import Control.Exception (SomeException (..), try)
+import Control.Lens (filtered, over, traversed, view, (%~), (.~), (^.))
+import Control.Monad (when)
+import Data.Aeson (decodeStrict)
+import Data.Aeson.Text (encodeToLazyText)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text, drop, dropWhile, dropWhileEnd, isInfixOf, isPrefixOf, lines, pack, unlines)
+import Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text.IO as TIO (readFile, writeFile)
+import qualified Data.Text.Lazy as TL (toStrict)
+import System.Exit (exitFailure)
+import System.FilePath (takeExtension)
+import Types (Task (..), TaskListOperation (..), taskCompleted, taskContent)
+import Prelude hiding (drop, dropWhile, lines, take, takeWhile, unlines)
 
-createTasksFileIfNotExists :: IO ()
-createTasksFileIfNotExists = do
-  filePath <- CFG.getTasksFilePath
-  D.createDirectoryIfMissing True (FP.takeDirectory filePath)
-  fileExists <- D.doesFileExist filePath
-  unless fileExists $ do BSL.writeFile filePath ""
+mkTask :: Text -> Maybe Bool -> Task
+mkTask txt completed = Task{_taskContent = txt, _taskCompleted = fromMaybe False completed}
 
-mkTask :: T.Text -> Task
-mkTask txt = Task {_taskContent = txt, _taskCompleted = False}
+updateTaskList :: [Task] -> TaskListOperation -> [Task]
+updateTaskList tasks tlop =
+    case tlop of
+        (AppendTask task) -> task : tasks
+        (DeleteTask task) -> filter (/= task) tasks
+        (ChangeTaskCompletion task) -> over (traversed . filtered (== task)) (taskCompleted %~ not) tasks
+        (EditTask task newContent) -> over (traversed . filtered (== task)) (taskContent .~ newContent) tasks
 
-updateTaskList :: TaskListUpdate
-updateTaskList cop = do
-  tasks <- getTasks
-  case cop of
-    (AppendTask task) -> writeTasks (task : tasks)
-    (DeleteTask task) -> writeTasks $ filter (/= task) tasks
-    (ChangeTaskCompletion task) -> writeTasks $ over (traversed . filtered (== task)) (taskCompleted %~ not) tasks
-    (EditTask task newContent) -> writeTasks $ over (traversed . filtered (== task)) (taskContent .~ newContent) tasks
+taskExists :: [Task] -> Text -> Bool
+taskExists tasks content =
+    any ((== content) . view taskContent) tasks
 
-writeTasks :: [Task] -> IO [Task]
-writeTasks tasks = do
-  tasksFilePath <- CFG.getTasksFilePath
-  BSL.writeFile tasksFilePath $ encode tasks
-  return tasks
+writeTasks :: FilePath -> [Task] -> IO [Task]
+writeTasks fp tasks = do
+    case takeExtension fp of
+        ".json" -> TIO.writeFile fp $ TL.toStrict $ encodeToLazyText tasks
+        ".md" -> TIO.writeFile fp $ encodeMarkdownTasks tasks
+        _ -> return ()
+    return tasks
 
-getTasks :: IO [Task]
-getTasks = do
-  tasksFilePath <- CFG.getTasksFilePath
-  tasksFromFile <- BSL.readFile tasksFilePath
-  case decode tasksFromFile of
-    Just task -> do
-      return task
-    Nothing -> return []
+readTasks :: FilePath -> IO [Task]
+readTasks fp = do
+    taskFileContent <- readTaskFile fp
+    case takeExtension fp of
+        ".json" -> case decodeStrict $ encodeUtf8 taskFileContent of
+            Just tasks -> return tasks
+            Nothing -> return []
+        ".md" -> return $ decodeMarkdownTasks taskFileContent
+        _ -> return []
 
-taskExists :: T.Text -> IO Bool
-taskExists content = do
-  tasks <- getTasks
-  let tasksContents = map (view taskContent) tasks
-  return $ content `elem` tasksContents
+readTaskFile :: FilePath -> IO Text
+readTaskFile fp = do
+    readAction <- try (TIO.readFile fp) :: IO (Either SomeException Text)
+    case readAction of
+        Left ex -> do
+            when ("invalid byte sequence" `isInfixOf` pack (show ex)) $ do
+                putStrLn
+                    "An error occured while decoding the tasks file content"
+                putStrLn "This may happen when any of the tasks has unicode characters and \
+                    \none of the Locale environment variables are set."
+                putStrLn
+                    "Run any of the following commands to set a value to a Locale environment variable"
+                putStrLn "export LC_ALL=C.UTF8"
+                putStrLn "export LANG=C.UTF8"
+                putStrLn "export LC_CTYPE=C.UTF8"
+            exitFailure
+        Right text -> return text
+
+encodeMarkdownTasks :: [Task] -> Text
+encodeMarkdownTasks tasks = unlines $ map encodeMarkdownTask tasks
+
+encodeMarkdownTask :: Task -> Text
+encodeMarkdownTask task =
+    let taskCompletedMarkdownString = if task ^. taskCompleted then "- [x]" else "- [ ]"
+     in taskCompletedMarkdownString <> " " <> (task ^. taskContent)
+
+decodeMarkdownTasks :: Text -> [Task]
+decodeMarkdownTasks tasksFromFile =
+    let taskLinesInFile = filter isCheckListItem $ lines tasksFromFile
+     in map decodeMarkdownTask taskLinesInFile
+
+decodeMarkdownTask :: Text -> Task
+decodeMarkdownTask taskFileLine =
+    let parsedTaskContent = stripLine $ drop 1 $ dropWhile (/= ']') taskFileLine
+        parsedTaskCompleted = if dropWhileEnd (/= ']') taskFileLine `elem` checkedCheckListString then Just True else Just False
+     in mkTask parsedTaskContent parsedTaskCompleted
+
+stripLine :: Text -> Text
+stripLine = dropWhile (== ' ') . dropWhileEnd (== ' ')
+
+isCheckListItem :: Text -> Bool
+isCheckListItem taskLineContent = any (`isPrefixOf` taskLineContent) checkListStrings
+
+checkListStrings :: [Text]
+checkListStrings =
+    uncheckedCheckListString ++ checkedCheckListString
+
+checkedCheckListString :: [Text]
+checkedCheckListString =
+    [ "- [x]"
+    , "-[x]"
+    ]
+
+uncheckedCheckListString :: [Text]
+uncheckedCheckListString =
+    [ "- []"
+    , "-[]"
+    , "-[ ]"
+    , "- [ ]"
+    ]

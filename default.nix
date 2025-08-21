@@ -12,5 +12,13 @@ let
   pkgs = import src { };
 in
 {
-  homodoro = pkgs.haskellPackages.callPackage ./homodoro.nix { };
+  homodoro = (pkgs.haskellPackages.callPackage ./homodoro.nix { }).overrideAttrs (oldAttrs: {
+    
+    nativeBuildInputs = (oldAttrs.nativeBuildInputs or []) ++ [ pkgs.upx ];
+
+    postInstall = ''
+     upx --brute $out/bin/homodoro
+    '';
+  });
+  pkgs = pkgs;
 }

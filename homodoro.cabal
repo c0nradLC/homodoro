@@ -1,14 +1,14 @@
 cabal-version: 1.12
 
 name:           homodoro
-version:        0.1.0.0
+version:        0.2.0.0
 description:    Please see the README on GitHub at <https://github.com/c0nradLC/homodoro#readme>
 homepage:       https://github.com/c0nradLC/homodoro#readme
 bug-reports:    https://github.com/c0nradLC/homodoro/issues
 author:         Leonardo Palhano Conrado
 maintainer:     l.conrado10@gmail.com
 copyright:      2025 Leonardo Conrado
-license:        BSD3
+license:        GPL-3
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:

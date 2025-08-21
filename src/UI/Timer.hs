@@ -68,9 +68,12 @@ drawPomodorosCounter s = C.hCenter (label (formatPomodoroCounter (s ^. pomodoroC
 
 formatTimer :: Int -> String
 formatTimer timer =
-    let minutes = timer `div` 60
+    let hours = timer `div` 3600
+        minutes = (timer `mod` 3600) `div` 60
         seconds = timer `mod` 60
-     in printf "%02d:%02d" minutes seconds
+     in if hours > 0
+        then printf "%02d:%02d:%02d" hours minutes seconds
+        else printf "%02d:%02d" minutes seconds
 
 formatPomodoroCounter :: Int -> String
 formatPomodoroCounter =

@@ -2,15 +2,16 @@ module Persistence (
     xdgPersistenceFilePath,
     defaultPersistence,
     writePersistence,
-    readPersistence
-    )
+    readPersistence,
+)
 where
-import Types (PersistenceFile (..), Timers (..), TimerState (..), Timer (Pomodoro))
-import Data.Time.LocalTime (getZonedTime, LocalTime (localDay), ZonedTime (zonedTimeToLocalTime))
+
+import Data.Aeson (decode, encode)
+import Data.ByteString.Lazy.Char8 (pack, unpack)
+import Data.Time.LocalTime (LocalTime (localDay), ZonedTime (zonedTimeToLocalTime), getZonedTime)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
-import Data.ByteString.Lazy.Char8 (unpack, pack)
-import Data.Aeson (encode, decode)
+import Types (PersistenceFile (..), Timer (Pomodoro), TimerState (..), Timers (..))
 
 defaultPersistence :: (Int, Int, Int) -> IO PersistenceFile
 defaultPersistence (pomodoroTimer, shortBreakTimer, longBreakTimer) = do
@@ -18,12 +19,13 @@ defaultPersistence (pomodoroTimer, shortBreakTimer, longBreakTimer) = do
     return
         PersistenceFile
             { _datePersisted = localDay (zonedTimeToLocalTime zonedTime)
-            , _timersPersisted = Timers
-                                    { _pomodoroState = TimerState {_timerCurrentValue = pomodoroTimer, _timerInitialValue = pomodoroTimer}
-                                    , _shortBreakState = TimerState {_timerCurrentValue = shortBreakTimer, _timerInitialValue = shortBreakTimer}
-                                    , _longBreakState = TimerState {_timerCurrentValue = longBreakTimer, _timerInitialValue = longBreakTimer}
-                                    , _timerCurrentFocus = Pomodoro
-                                    }
+            , _timersPersisted =
+                Timers
+                    { _pomodoroState = TimerState{_timerCurrentValue = pomodoroTimer, _timerInitialValue = pomodoroTimer}
+                    , _shortBreakState = TimerState{_timerCurrentValue = shortBreakTimer, _timerInitialValue = shortBreakTimer}
+                    , _longBreakState = TimerState{_timerCurrentValue = longBreakTimer, _timerInitialValue = longBreakTimer}
+                    , _timerCurrentFocus = Pomodoro
+                    }
             , _pomodoroRoundsPersisted = 0
             , _focusedTimePersisted = 0
             , _breakTimePersisted = 0

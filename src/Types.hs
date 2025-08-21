@@ -17,9 +17,9 @@ module Types (
     TaskListOperation (..),
     InitialTimerDialogChoice (..),
     Audio (..),
-    AudioCache(..),
+    AudioCache (..),
     SoundVolumeDialogChoice (..),
-    PersistenceFile(..),
+    PersistenceFile (..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -66,7 +66,7 @@ module Types (
     timersPersisted,
     persistenceFile,
     focusedTimePersisted,
-    breakTimePersisted
+    breakTimePersisted,
 )
 where
 
@@ -80,8 +80,8 @@ import Data.Aeson.TH (defaultOptions, deriveJSON)
 import Data.IORef (IORef)
 import Data.Map (Map)
 import Data.Text (Text)
-import qualified SDL.Mixer as Mix
 import Data.Time (Day)
+import qualified SDL.Mixer as Mix
 
 data Timer
     = Pomodoro

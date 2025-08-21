@@ -15,7 +15,7 @@ module Config (
     configIntValue,
     soundVolumePercentage,
     xdgConfigFilePath,
-    defaultConfig
+    defaultConfig,
 )
 where
 
@@ -45,7 +45,6 @@ defaultConfig = do
             , _timerTickSoundVolumeSetting = ConfigSetting{_configLabel = "Timer tick sound volume", _configValue = ConfigTimerTickSoundVolume 60}
             , _audioDirectoryPathSetting = ConfigSetting{_configLabel = "Audio directory path", _configValue = ConfigAudioDirectoryPath $ xdgDataPath FP.</> "homodoro" FP.</> "audio"}
             }
-
 
 xdgConfigFilePath :: IO FilePath
 xdgConfigFilePath = do

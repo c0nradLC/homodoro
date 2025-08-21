@@ -65,7 +65,8 @@ readTaskFile fp = do
             when ("invalid byte sequence" `isInfixOf` pack (show ex)) $ do
                 putStrLn
                     "An error occured while decoding the tasks file content"
-                putStrLn "This may happen when any of the tasks has unicode characters and \
+                putStrLn
+                    "This may happen when any of the tasks has unicode characters and \
                     \none of the Locale environment variables are set."
                 putStrLn
                     "Run any of the following commands to set a value to a Locale environment variable"

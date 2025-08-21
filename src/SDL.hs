@@ -2,13 +2,13 @@ module SDL (initializeAudio, cleanupAudio, closeSDL, preloadAudio, preloadAllAud
 
 import Control.Monad (unless)
 import qualified Data.ByteString as BS
-import qualified SDL.Mixer as Mix
-import Types (AudioCache (AudioCache, _audioCacheRef), Audio (TimerAlert, TimerTick, TimerStartStop))
-import qualified Data.Map as Map
-import Data.IORef (newIORef, readIORef, modifyIORef, writeIORef)
-import System.Directory (listDirectory)
 import Data.Char (toLower)
+import Data.IORef (modifyIORef, newIORef, readIORef, writeIORef)
+import qualified Data.Map as Map
+import qualified SDL.Mixer as Mix
+import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, (</>))
+import Types (Audio (TimerAlert, TimerStartStop, TimerTick), AudioCache (AudioCache, _audioCacheRef))
 
 initializeAudio :: IO AudioCache
 initializeAudio = do
@@ -32,12 +32,14 @@ preloadAllAudio :: AudioCache -> FilePath -> IO [(Audio, FilePath)]
 preloadAllAudio manager audioDirFp = do
     filesInDir <- listDirectory audioDirFp
     let audioTypes = [TimerAlert, TimerTick, TimerStartStop]
-        foundAudioFiles = [(audio, file) | audio <- audioTypes, 
-                                          file <- filesInDir,
-                                          map toLower (takeBaseName file) == map toLower (show audio)]
-    mapM (\(audio, fp) -> 
-              preloadAudio manager (audioDirFp </> fp) audio
-          ) foundAudioFiles
+        foundAudioFiles =
+            [ (audio, file) | audio <- audioTypes, file <- filesInDir, map toLower (takeBaseName file) == map toLower (show audio)
+            ]
+    mapM
+        ( \(audio, fp) ->
+            preloadAudio manager (audioDirFp </> fp) audio
+        )
+        foundAudioFiles
 
 preloadAudio :: AudioCache -> FilePath -> Audio -> IO (Audio, FilePath)
 preloadAudio manager fp audio = do

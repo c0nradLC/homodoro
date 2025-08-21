@@ -19,6 +19,7 @@ module Types (
     Audio (..),
     AudioCache(..),
     SoundVolumeDialogChoice (..),
+    PersistenceFile(..),
     timerRunning,
     pomodoroCounter,
     pomodoroCyclesCounter,
@@ -60,7 +61,12 @@ module Types (
     timerCurrentValue,
     timerInitialValue,
     timerCurrentFocus,
-    audioFilesFound
+    audioFilesFound,
+    pomodoroRoundsPersisted,
+    timersPersisted,
+    persistenceFile,
+    focusedTimePersisted,
+    breakTimePersisted
 )
 where
 
@@ -75,6 +81,7 @@ import Data.IORef (IORef)
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified SDL.Mixer as Mix
+import Data.Time (Day)
 
 data Timer
     = Pomodoro
@@ -87,7 +94,9 @@ data TimerState = TimerState
     { _timerCurrentValue :: Int
     , _timerInitialValue :: Int
     }
+    deriving (Show, Eq)
 makeLenses ''TimerState
+deriveJSON defaultOptions ''TimerState
 
 data Timers = Timers
     { _pomodoroState :: TimerState
@@ -95,7 +104,9 @@ data Timers = Timers
     , _longBreakState :: TimerState
     , _timerCurrentFocus :: Timer
     }
+    deriving (Show, Eq)
 makeLenses ''Timers
+deriveJSON defaultOptions ''Timers
 
 data InitialTimerDialogChoice
     = SaveInitialTimer
@@ -190,6 +201,17 @@ data ConfigFile = ConfigFile
 makeLenses ''ConfigFile
 deriveJSON defaultOptions ''ConfigFile
 
+data PersistenceFile = PersistenceFile
+    { _datePersisted :: Day
+    , _timersPersisted :: Timers
+    , _pomodoroRoundsPersisted :: Int
+    , _focusedTimePersisted :: Int
+    , _breakTimePersisted :: Int
+    }
+    deriving (Show, Eq)
+makeLenses ''PersistenceFile
+deriveJSON defaultOptions ''PersistenceFile
+
 data AppState = AppState
     { _timerRunning :: Bool
     , _timers :: Timers
@@ -214,5 +236,6 @@ data AppState = AppState
     , _audioDirectoryPathBrowser :: FileBrowser Name
     , _audioCache :: AudioCache
     , _audioFilesFound :: [Audio]
+    , _persistenceFile :: PersistenceFile
     }
 makeLenses ''AppState

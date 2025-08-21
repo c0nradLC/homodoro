@@ -2,8 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Config (
-    createProgramFileAndDirectoriesIfNotExists,
-    readConfig,
+    readConfigFile,
     readTasksFilePath,
     updateConfig,
     configFileSettings,
@@ -14,20 +13,19 @@ module Config (
     configFilePathValue,
     initialTimerSettingL,
     configIntValue,
-    soundVolumePercentage
+    soundVolumePercentage,
+    xdgConfigFilePath,
+    defaultConfig
 )
 where
 
 import qualified Control.Applicative as FP
 import Control.Lens (Lens', (&), (.~))
 import Control.Lens.Getter ((^.))
-import Control.Monad (unless)
 import Data.Aeson (decode, encode)
 import Data.ByteString.Lazy.Char8 (pack, unpack)
 import Data.List (find)
-import System.Directory (createDirectoryIfMissing, doesFileExist)
 import qualified System.Directory as D
-import System.FilePath (takeDirectory)
 import qualified System.FilePath as FP
 import Types (ConfigFile (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), audioDirectoryPathSetting, configValue, longBreakInitialTimerSetting, pomodoroInitialTimerSetting, shortBreakInitialTimerSetting, tasksFilePathSetting, timerAlertSoundVolumeSetting, timerPopupAlertSetting, timerStartStopSoundVolumeSetting, timerTickSoundVolumeSetting)
 import UI.Timer (formatTimer)
@@ -48,19 +46,6 @@ defaultConfig = do
             , _audioDirectoryPathSetting = ConfigSetting{_configLabel = "Audio directory path", _configValue = ConfigAudioDirectoryPath $ xdgDataPath FP.</> "homodoro" FP.</> "audio"}
             }
 
-createProgramFileAndDirectoriesIfNotExists :: IO ()
-createProgramFileAndDirectoriesIfNotExists = do
-    configFilePath <- xdgConfigFilePath
-    D.createDirectoryIfMissing True (FP.takeDirectory configFilePath)
-    configFileExists <- D.doesFileExist configFilePath
-    defaultConfigFile <- defaultConfig
-    unless configFileExists $ do
-        writeFile configFilePath $ unpack $ encode defaultConfigFile
-        createDirectoryIfMissing True $ configFilePathValue $ defaultConfigFile ^. audioDirectoryPathSetting
-        createDirectoryIfMissing True (takeDirectory $ configFilePathValue $ defaultConfigFile ^. audioDirectoryPathSetting)
-        let tasksFilePath = configFilePathValue $ defaultConfigFile ^. tasksFilePathSetting
-        fileExists <- doesFileExist tasksFilePath
-        unless fileExists $ do writeFile tasksFilePath ""
 
 xdgConfigFilePath :: IO FilePath
 xdgConfigFilePath = do
@@ -78,15 +63,15 @@ writeConfig cfg = do
     configFilePath <- xdgConfigFilePath
     writeFile configFilePath $ unpack $ encode cfg
 
-readConfig :: IO ConfigFile
-readConfig = do
+readConfigFile :: IO ConfigFile
+readConfigFile = do
     configFilePath <- xdgConfigFilePath
     configFileContent <- readFile configFilePath
     maybe defaultConfig return (decode $ pack configFileContent)
 
 readTasksFilePath :: IO FilePath
 readTasksFilePath = do
-    configFile <- readConfig
+    configFile <- readConfigFile
     return $ configFilePathValue $ configFile ^. tasksFilePathSetting
 
 initialTimerSettingL :: Timer -> Lens' ConfigFile ConfigSetting

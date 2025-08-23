@@ -196,7 +196,7 @@ handleEvent ev = do
                                 loadedAudio <- liftIO $ do
                                     SDL.cleanupAudio (s ^. audioCache)
                                     SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
-                                audioFilesFound .= map fst loadedAudio
+                                audioFilesFound .= loadedAudio
                                 changeFocus Config s
                             (KChar 'c', []) -> do
                                 case fileBrowserCursor (s ^. audioDirectoryPathBrowser) of
@@ -209,7 +209,7 @@ handleEvent ev = do
                                                 loadedAudio <- liftIO $ do
                                                     SDL.cleanupAudio (s ^. audioCache)
                                                     SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
-                                                audioFilesFound .= map fst loadedAudio
+                                                audioFilesFound .= loadedAudio
                                                 changeFocus Config s
                                             else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
                                     Nothing -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev

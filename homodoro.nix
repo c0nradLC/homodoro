@@ -1,6 +1,6 @@
 { mkDerivation, aeson, base, brick, bytestring, containers
 , directory, filepath, lens, lib, libnotify, mtl, sdl2-mixer, text
-, time, vector, vty
+, time, vector, vty, file-embed
 }:
 mkDerivation {
   pname = "homodoro";
@@ -10,7 +10,7 @@ mkDerivation {
   isExecutable = true;
   executableHaskellDepends = [
     aeson base brick bytestring containers directory filepath lens
-    libnotify mtl sdl2-mixer text time vector vty
+    libnotify mtl sdl2-mixer text time vector vty file-embed
   ];
   homepage = "https://github.com/c0nradLC/homodoro#readme";
   license = lib.licenses.gpl3Only;

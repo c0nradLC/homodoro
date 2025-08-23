@@ -169,7 +169,7 @@ createAppState = do
                     , _audioDirectoryPath = setAudioDirectoryPath
                     , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
                     , _audioCache = initialAudioManager
-                    , _audioFilesFound = map fst loadedAudio
+                    , _audioFilesFound = loadedAudio
                     , _persistenceFile = currentPersistenceFile
                     }
 
@@ -301,6 +301,7 @@ createProgramFileAndDirectoriesIfNotExists = do
     persistenceFilePath <- xdgPersistenceFilePath
     persistenceFileExists <- D.doesFileExist persistenceFilePath
     D.createDirectoryIfMissing True (FP.takeDirectory configFilePath)
+    configFile <- if configFileExists then readConfigFile else defaultConfig
     unless configFileExists $ do
         let tasksFilePath = configFilePathValue $ defaultConfigFile ^. tasksFilePathSetting
         writeFile configFilePath $ unpack $ encode defaultConfigFile
@@ -310,9 +311,9 @@ createProgramFileAndDirectoriesIfNotExists = do
         unless taskFileExists $ do writeFile tasksFilePath ""
     defaultPersistenceFile <-
         defaultPersistence
-            ( configIntValue $ defaultConfigFile ^. pomodoroInitialTimerSetting
-            , configIntValue $ defaultConfigFile ^. shortBreakInitialTimerSetting
-            , configIntValue $ defaultConfigFile ^. longBreakInitialTimerSetting
+            ( configIntValue $ configFile ^. pomodoroInitialTimerSetting
+            , configIntValue $ configFile  ^. shortBreakInitialTimerSetting
+            , configIntValue $ configFile ^. longBreakInitialTimerSetting
             )
     D.createDirectoryIfMissing True (FP.takeDirectory persistenceFilePath)
     unless persistenceFileExists $ writePersistence defaultPersistenceFile

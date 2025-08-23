@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module SDL (initializeAudio, cleanupAudio, closeSDL, preloadAudio, preloadAllAudio, playAudio) where
 
 import Control.Monad (unless)
@@ -9,6 +10,10 @@ import qualified SDL.Mixer as Mix
 import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, (</>))
 import Types (Audio (TimerAlert, TimerStartStop, TimerTick), AudioCache (AudioCache, _audioCacheRef))
+import Data.ByteString (ByteString)
+import Data.FileEmbed (embedDir)
+import Data.Maybe (listToMaybe, catMaybes)
+import Data.List ((\\))
 
 initializeAudio :: IO AudioCache
 initializeAudio = do
@@ -28,27 +33,49 @@ closeSDL = do
     Mix.closeAudio
     Mix.quit
 
-preloadAllAudio :: AudioCache -> FilePath -> IO [(Audio, FilePath)]
+fallbackAudioFiles :: [(FilePath, ByteString)]
+fallbackAudioFiles = $(embedDir "audio")
+
+getFallbackAudio :: Audio -> Maybe ByteString
+getFallbackAudio audio = 
+    listToMaybe 
+        [ bytes 
+        | (path, bytes) <- fallbackAudioFiles
+        , map toLower (takeBaseName path) == map toLower (show audio)
+        ]
+
+preloadAllAudio :: AudioCache -> FilePath -> IO [Audio]
 preloadAllAudio manager audioDirFp = do
     filesInDir <- listDirectory audioDirFp
     let audioTypes = [TimerAlert, TimerTick, TimerStartStop]
         foundAudioFiles =
             [ (audio, file) | audio <- audioTypes, file <- filesInDir, map toLower (takeBaseName file) == map toLower (show audio)
             ]
-    mapM
-        ( \(audio, fp) ->
-            preloadAudio manager (audioDirFp </> fp) audio
+        missingAudioTypes = audioTypes \\ map fst foundAudioFiles
+    audioFromDir <- mapM
+        ( \(audio, fp) -> do
+            audioFile <- BS.readFile $ audioDirFp </> fp
+            preloadAudio manager audioFile audio
         )
         foundAudioFiles
+    fallbackAudio <- mapM
+        (\audio -> do
+            case getFallbackAudio audio of
+                Just fallbackBytes -> do
+                    loadedAudio <- preloadAudio manager fallbackBytes audio
+                    return $ Just loadedAudio
+                Nothing -> return Nothing
+        )
+        missingAudioTypes
+    return $ audioFromDir ++ catMaybes fallbackAudio
 
-preloadAudio :: AudioCache -> FilePath -> Audio -> IO (Audio, FilePath)
-preloadAudio manager fp audio = do
+preloadAudio :: AudioCache -> ByteString -> Audio -> IO Audio
+preloadAudio manager audioFile audio = do
     cache <- readIORef (_audioCacheRef manager)
     unless (Map.member audio cache) $ do
-        audioFile <- BS.readFile fp
         audioContent <- Mix.decode audioFile
         modifyIORef (_audioCacheRef manager) (Map.insert audio audioContent)
-    pure (audio, fp)
+    return audio
 
 playAudio :: AudioCache -> Audio -> Int -> IO ()
 playAudio manager audio vol = do

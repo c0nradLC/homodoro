@@ -83,7 +83,12 @@ playAudio manager audio vol = do
     case Map.lookup audio cache of
         Just audioF -> do
             Mix.setVolume vol audioF
-            _ <- Mix.play audioF
+            _ <- Mix.playLimit (
+                case audio of             -- Set the play time of the Chunk in Milliseconds
+                    TimerTick -> 1000
+                    TimerAlert -> 10000
+                    TimerStartStop -> 3000
+                ) Mix.AllChannels 1 audioF
             return ()
         Nothing -> return ()
 

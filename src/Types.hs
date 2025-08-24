@@ -21,7 +21,6 @@ module Types (
     SoundVolumeDialogChoice (..),
     PersistenceFile (..),
     timerRunning,
-    pomodoroCounter,
     pomodoroCyclesCounter,
     taskEditor,
     taskList,
@@ -54,7 +53,6 @@ module Types (
     timerPopupAlert,
     timerStartStopSoundVolume,
     timerStartStopSoundVolumeConfigDialog,
-    timers,
     pomodoroState,
     shortBreakState,
     longBreakState,
@@ -214,8 +212,6 @@ deriveJSON defaultOptions ''PersistenceFile
 
 data AppState = AppState
     { _timerRunning :: Bool
-    , _timers :: Timers
-    , _pomodoroCounter :: Int
     , _pomodoroCyclesCounter :: Int
     , _taskEditor :: Editor Text Name
     , _taskList :: BL.List Name Task

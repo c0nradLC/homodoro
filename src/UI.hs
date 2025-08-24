@@ -66,7 +66,6 @@ import Types (
     longBreakState,
     persistenceFile,
     pomodoroInitialTimerSetting,
-    pomodoroRoundsPersisted,
     pomodoroState,
     shortBreakInitialTimerSetting,
     shortBreakState,
@@ -85,7 +84,7 @@ import Types (
     timerTickSoundVolume,
     timerTickSoundVolumeConfigDialog,
     timerTickSoundVolumeSetting,
-    timers,
+    timersPersisted,
     timersPersisted,
  )
 import UI.Attributes (
@@ -132,8 +131,6 @@ createAppState = do
             return
                 AppState
                     { _timerRunning = False
-                    , _timers = currentPersistenceFile ^. timersPersisted
-                    , _pomodoroCounter = currentPersistenceFile ^. pomodoroRoundsPersisted
                     , _pomodoroCyclesCounter = 0
                     , _taskEditor = editor (TaskEdit Insert) (Just 5) ""
                     , _focus =
@@ -187,9 +184,9 @@ drawUI s = do
         currentFocus@(Just Config) -> [B.border (C.center $ drawConfigList (s ^. configList)) <=> drawCommands currentFocus]
         Just (InitialTimerDialog timer) ->
             let currentInitialTimerValue = case timer of
-                    Pomodoro -> s ^. timers . pomodoroState . timerInitialValue
-                    ShortBreak -> s ^. timers . shortBreakState . timerInitialValue
-                    LongBreak -> s ^. timers . longBreakState . timerInitialValue
+                    Pomodoro -> s ^. persistenceFile . timersPersisted . pomodoroState . timerInitialValue
+                    ShortBreak -> s ^. persistenceFile . timersPersisted . shortBreakState . timerInitialValue
+                    LongBreak -> s ^. persistenceFile . timersPersisted . longBreakState . timerInitialValue
              in [ B.border $
                     drawConfigList (s ^. configList)
                         <=> padBottom

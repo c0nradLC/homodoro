@@ -25,7 +25,7 @@ import Data.Vector (fromList, toList)
 import Graphics.Vty (Event (EvKey), Key (..), Modifier (..))
 import Notify (showNotification)
 import Task (mkTask, readTasks, taskExists, updateTaskList, writeTasks)
-import Types (AppState (), Audio (..), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, pomodoroCounter, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timers, AudioCache, audioCache, timerCurrentFocus, persistenceFile, timersPersisted, pomodoroRoundsPersisted, focusedTimePersisted, breakTimePersisted, PersistenceFile, Timers)
+import Types (AppState (), Audio (..), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, pomodoroRoundsPersisted, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timersPersisted, AudioCache, audioCache, timerCurrentFocus, persistenceFile, timersPersisted, pomodoroRoundsPersisted, focusedTimePersisted, breakTimePersisted, PersistenceFile, Timers)
 import UI.Config (initialTimerDialog, soundVolumeDialog)
 import Prelude hiding (null, unlines)
 import qualified SDL
@@ -37,26 +37,26 @@ handleEvent ev = do
     let currentFocus = focusGetCurrent $ s ^. focus
     case ev of
         (AppEvent Tick) ->
-            let currentTimer = s ^. timers . timerCurrentFocus
+            let currentTimer = s ^. persistenceFile . timersPersisted . timerCurrentFocus
             in case currentFocus of
             Just TaskList ->
                 when (s ^. timerRunning) $
                     case currentTimer of
                         Pomodoro ->
-                            handleTimerTick s (timers . pomodoroState . timerCurrentValue) "Pomodoro round ended!" currentTimer $ do
-                                pomodoroCounter .= (s ^. pomodoroCounter) + 1
+                            handleTimerTick s (persistenceFile . timersPersisted . pomodoroState . timerCurrentValue) "Pomodoro round ended!" currentTimer $ do
+                                persistenceFile . pomodoroRoundsPersisted .= (s ^. persistenceFile . pomodoroRoundsPersisted) + 1
                                 pomodoroCyclesCounter .= (s ^. pomodoroCyclesCounter) + 1
                                 if (s ^. pomodoroCyclesCounter) == 3 then do
-                                    timers . timerCurrentFocus .= LongBreak
+                                    persistenceFile . timersPersisted . timerCurrentFocus .= LongBreak
                                 else
-                                    timers . timerCurrentFocus .= ShortBreak
-                                persistenceFile . pomodoroRoundsPersisted .= s ^. pomodoroCounter
+                                    persistenceFile . timersPersisted . timerCurrentFocus .= ShortBreak
+                                persistenceFile . pomodoroRoundsPersisted .= s ^. persistenceFile . pomodoroRoundsPersisted
                                 updatedPersistence <- use persistenceFile
                                 liftIO $ writePersistence updatedPersistence
-                        ShortBreak -> handleTimerTick s (timers . shortBreakState . timerCurrentValue) "Short break ended!" currentTimer (timers . timerCurrentFocus .= Pomodoro)
-                        LongBreak -> handleTimerTick s (timers . longBreakState . timerCurrentValue) "Long break ended!" currentTimer $ do
+                        ShortBreak -> handleTimerTick s (persistenceFile . timersPersisted . shortBreakState . timerCurrentValue) "Short break ended!" currentTimer (persistenceFile . timersPersisted . timerCurrentFocus .= Pomodoro)
+                        LongBreak -> handleTimerTick s (persistenceFile . timersPersisted . longBreakState . timerCurrentValue) "Long break ended!" currentTimer $ do
                             pomodoroCyclesCounter .= 0
-                            timers . timerCurrentFocus .= Pomodoro
+                            persistenceFile . timersPersisted . timerCurrentFocus .= Pomodoro
             _ -> return ()
         (VtyEvent vev@(EvKey k ms)) -> do
             let selectedListTask = listSelectedElement (s ^. taskList)
@@ -103,17 +103,17 @@ handleEvent ev = do
                             when ((s ^. timerStartStopSoundVolume) > 0) $ do
                                 void $ liftIO $ forkOS $ SDL.playAudio (s ^. audioCache) TimerStartStop (s ^. timerStartStopSoundVolume)
                                 timerRunning .= not (s ^. timerRunning)
-                            persistenceFile . timersPersisted .= (s ^. timers)
+                            persistenceFile . timersPersisted .= (s ^. persistenceFile . timersPersisted)
                             updatedPersistence <- use persistenceFile
                             liftIO $ writePersistence updatedPersistence
                         (KChar 'r', []) -> do
-                            resetTimer s (s ^. timers . timerCurrentFocus)
+                            resetTimer s (s ^. persistenceFile . timersPersisted . timerCurrentFocus)
                         (KBackTab, []) -> do
                             timerRunning .= False
-                            case s ^. timers . timerCurrentFocus of
-                                Pomodoro -> timers . timerCurrentFocus .= ShortBreak
-                                ShortBreak -> timers . timerCurrentFocus .= LongBreak
-                                LongBreak -> timers . timerCurrentFocus .= Pomodoro
+                            case s ^. persistenceFile . timersPersisted . timerCurrentFocus of
+                                Pomodoro -> persistenceFile . timersPersisted . timerCurrentFocus .= ShortBreak
+                                ShortBreak -> persistenceFile . timersPersisted . timerCurrentFocus .= LongBreak
+                                LongBreak -> persistenceFile . timersPersisted . timerCurrentFocus .= Pomodoro
                         (KChar 'p', []) -> changeFocus Config s
                         _ -> zoom taskList $ handleListEventVi handleListEvent vev
                 Just Config -> do
@@ -153,6 +153,7 @@ handleEvent ev = do
                         (KEnter, []) -> case dialogSelection (s ^. initialTimerConfigDialog) of
                             Just SaveInitialTimer -> do
                                 handleConfigUpdate s (initialTimerSettingL timer) (ConfigInitialTimer timer (s ^. (timerState timer . timerInitialValue))) configList configFile
+                                liftIO $ writePersistence (s ^. persistenceFile)
                             Just CloseInitialTimerDialog -> do
                                 timerState timer . timerInitialValue .= configIntValue (s ^. configFile . initialTimerSettingL timer)
                                 changeFocus Config s
@@ -272,9 +273,9 @@ handleEvent ev = do
 
 timerState :: Timer -> Lens' AppState TimerState
 timerState timer = case timer of
-    Pomodoro -> timers . pomodoroState
-    ShortBreak -> timers . shortBreakState
-    LongBreak -> timers . longBreakState
+    Pomodoro -> persistenceFile . timersPersisted . pomodoroState
+    ShortBreak -> persistenceFile . timersPersisted . shortBreakState
+    LongBreak -> persistenceFile . timersPersisted . longBreakState
 
 resetTimer :: AppState -> Timer -> EventM Name AppState ()
 resetTimer s timer = timerState timer . timerCurrentValue .= configIntValue (s ^. (configFile . initialTimerSettingL timer))
@@ -288,7 +289,7 @@ handleTimerTick ::
     EventM Name AppState ()
 handleTimerTick s timerL popupText timer afterTickF = do
     tickTimer (s ^. audioCache) timerL (s ^. timerL) (s ^. timerTickSoundVolume)
-    updatePersistenceTimers (s ^. persistenceFile) (s ^. timers) timer
+    updatePersistenceTimers (s ^. persistenceFile) (s ^. persistenceFile . timersPersisted) timer
 
     when (s ^. timerL == 0) $ do
         stopTimer

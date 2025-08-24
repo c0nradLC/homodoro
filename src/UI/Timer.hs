@@ -11,12 +11,12 @@ import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Center as C
 import Control.Lens ((^.))
 import Text.Printf (printf)
-import Types (AppState, Name, Timer (LongBreak, Pomodoro, ShortBreak), longBreakState, pomodoroCounter, pomodoroState, shortBreakState, timerCurrentValue, timerRunning, timers, timerCurrentFocus)
+import Types (AppState, Name, Timer (LongBreak, Pomodoro, ShortBreak), longBreakState, pomodoroRoundsPersisted, pomodoroState, shortBreakState, timerCurrentValue, timerRunning, timerCurrentFocus, persistenceFile, timersPersisted)
 import UI.Attributes (selectedTimerAttr, timerAttr)
 
 drawTimers :: AppState -> Widget Name
 drawTimers s =
-    case s ^. timers . timerCurrentFocus of
+    case s ^. persistenceFile . timersPersisted . timerCurrentFocus of
         Pomodoro ->
             B.border $
                 C.hCenter
@@ -24,7 +24,7 @@ drawTimers s =
                         <+> padLeftRight 2 (label "Short break")
                         <+> label "Long break"
                     )
-                    <=> drawTimerAndPomodoroCounter (s ^. timers . pomodoroState ^. timerCurrentValue)
+                    <=> drawTimerAndPomodoroCounter (s ^. persistenceFile . timersPersisted . pomodoroState ^. timerCurrentValue)
         ShortBreak ->
             B.border $
                 C.hCenter
@@ -32,7 +32,7 @@ drawTimers s =
                         <+> padLeftRight 2 (withAttr selectedTimerAttr $ label "Short break")
                         <+> label "Long break"
                     )
-                    <=> drawTimerAndPomodoroCounter (s ^. timers . shortBreakState ^. timerCurrentValue)
+                    <=> drawTimerAndPomodoroCounter (s ^. persistenceFile . timersPersisted . shortBreakState ^. timerCurrentValue)
         LongBreak ->
             B.border $
                 C.hCenter
@@ -40,7 +40,7 @@ drawTimers s =
                         <+> padLeftRight 2 (label "Short break")
                         <+> withAttr selectedTimerAttr (label "Long break")
                     )
-                    <=> drawTimerAndPomodoroCounter (s ^. timers . longBreakState ^. timerCurrentValue)
+                    <=> drawTimerAndPomodoroCounter (s ^. persistenceFile . timersPersisted . longBreakState ^. timerCurrentValue)
   where
     drawTimerAndPomodoroCounter timerValue =
         drawTimer (s ^. timerRunning) timerValue
@@ -64,7 +64,7 @@ drawTimer running timerValue =
                     formatTimer timerValue
 
 drawPomodorosCounter :: AppState -> Widget Name
-drawPomodorosCounter s = C.hCenter (label (formatPomodoroCounter (s ^. pomodoroCounter)))
+drawPomodorosCounter s = C.hCenter (label (formatPomodoroCounter (s ^. persistenceFile . pomodoroRoundsPersisted)))
 
 formatTimer :: Int -> String
 formatTimer timer =

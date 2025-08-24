@@ -25,7 +25,7 @@ import Data.Vector (fromList, toList)
 import Graphics.Vty (Event (EvKey), Key (..), Modifier (..))
 import Notify (showNotification)
 import Task (mkTask, readTasks, taskExists, updateTaskList, writeTasks)
-import Types (AppState (), Audio (..), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, pomodoroCounter, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timers, AudioCache, audioCache, timerCurrentFocus, audioFilesFound, persistenceFile, timersPersisted, pomodoroRoundsPersisted, focusedTimePersisted, breakTimePersisted, PersistenceFile, Timers)
+import Types (AppState (), Audio (..), ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, configFile, configList, configValue, focus, initialTimerConfigDialog, longBreakState, pomodoroCounter, pomodoroCyclesCounter, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timers, AudioCache, audioCache, timerCurrentFocus, persistenceFile, timersPersisted, pomodoroRoundsPersisted, focusedTimePersisted, breakTimePersisted, PersistenceFile, Timers)
 import UI.Config (initialTimerDialog, soundVolumeDialog)
 import Prelude hiding (null, unlines)
 import qualified SDL
@@ -193,10 +193,9 @@ handleEvent ev = do
                                 let updatedAudioDirectoryPath = getWorkingDirectory (s ^. audioDirectoryPathBrowser)
                                 handleConfigUpdate s audioDirectoryPathSetting (ConfigAudioDirectoryPath updatedAudioDirectoryPath) configList configFile
                                 audioDirectoryPath .= updatedAudioDirectoryPath
-                                loadedAudio <- liftIO $ do
+                                void $ liftIO $ do
                                     SDL.cleanupAudio (s ^. audioCache)
                                     SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
-                                audioFilesFound .= loadedAudio
                                 changeFocus Config s
                             (KChar 'c', []) -> do
                                 case fileBrowserCursor (s ^. audioDirectoryPathBrowser) of
@@ -206,10 +205,9 @@ handleEvent ev = do
                                                 let updatedAudioDirectoryPath = fileInfoFilePath fileInfo
                                                 handleConfigUpdate s audioDirectoryPathSetting (ConfigAudioDirectoryPath updatedAudioDirectoryPath) configList configFile
                                                 audioDirectoryPath .= updatedAudioDirectoryPath
-                                                loadedAudio <- liftIO $ do
+                                                void $ liftIO $ do
                                                     SDL.cleanupAudio (s ^. audioCache)
                                                     SDL.preloadAllAudio (s ^. audioCache) updatedAudioDirectoryPath
-                                                audioFilesFound .= loadedAudio
                                                 changeFocus Config s
                                             else zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev
                                     Nothing -> zoom audioDirectoryPathBrowser $ handleFileBrowserEvent vev

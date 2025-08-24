@@ -61,7 +61,6 @@ module Types (
     timerCurrentValue,
     timerInitialValue,
     timerCurrentFocus,
-    audioFilesFound,
     pomodoroRoundsPersisted,
     timersPersisted,
     persistenceFile,
@@ -235,7 +234,6 @@ data AppState = AppState
     , _audioDirectoryPath :: FilePath
     , _audioDirectoryPathBrowser :: FileBrowser Name
     , _audioCache :: AudioCache
-    , _audioFilesFound :: [Audio]
     , _persistenceFile :: PersistenceFile
     }
 makeLenses ''AppState

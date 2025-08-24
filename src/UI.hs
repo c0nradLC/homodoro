@@ -51,7 +51,6 @@ import qualified System.FilePath as FP
 import Task (readTasks)
 import Types (
     AppState (..),
-    Audio (TimerAlert, TimerStartStop, TimerTick),
     AudioCache (AudioCache),
     Name (..),
     TaskAction (Edit, Insert),
@@ -59,7 +58,6 @@ import Types (
     Timer (LongBreak, Pomodoro, ShortBreak),
     audioDirectoryPathBrowser,
     audioDirectoryPathSetting,
-    audioFilesFound,
     configList,
     focus,
     focusedTimePersisted,
@@ -130,7 +128,7 @@ createAppState = do
             currentPersistenceFile <- readPersistence (setPomodoroInitialTimer, setShortBreakInitialTimer, setLongBreakInitialTimer)
             initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
             initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
-            loadedAudio <- preloadAllAudio initialAudioManager setAudioDirectoryPath
+            void $ preloadAllAudio initialAudioManager setAudioDirectoryPath
             return
                 AppState
                     { _timerRunning = False
@@ -169,7 +167,6 @@ createAppState = do
                     , _audioDirectoryPath = setAudioDirectoryPath
                     , _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser
                     , _audioCache = initialAudioManager
-                    , _audioFilesFound = loadedAudio
                     , _persistenceFile = currentPersistenceFile
                     }
 
@@ -273,23 +270,16 @@ drawUI s = do
             str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
             <=> str
                 ( "Timer tick volume: "
-                    ++ ( if TimerTick `elem` (s ^. audioFilesFound)
-                            then soundVolumePercentage (state ^. timerTickSoundVolume)
-                            else "Audio not found"
-                       )
+                    ++ soundVolumePercentage (state ^. timerTickSoundVolume)
                 )
             <=> str
                 ( "Timer alert volume: "
-                    ++ ( if TimerAlert `elem` (s ^. audioFilesFound)
-                            then soundVolumePercentage (state ^. timerAlertSoundVolume)
-                            else "Audio not found"
-                       )
+                    ++  soundVolumePercentage (state ^. timerAlertSoundVolume)
+                       
                 )
             <=> str
                 ( "Timer start/stop volume: "
-                    ++ if TimerStartStop `elem` (s ^. audioFilesFound)
-                        then soundVolumePercentage (state ^. timerStartStopSoundVolume)
-                        else "Audio not found"
+                    ++ soundVolumePercentage (state ^. timerStartStopSoundVolume)
                 )
             <+> padLeft Max (str ("Focused time today: " ++ formatTimer (state ^. persistenceFile . focusedTimePersisted)))
 

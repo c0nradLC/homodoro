@@ -289,7 +289,7 @@ handleTimerTick ::
     EventM Name AppState ()
 handleTimerTick s timerL popupText timer afterTickF = do
     tickTimer (s ^. audioCache) timerL (s ^. timerL) (s ^. timerTickSoundVolume)
-    updatePersistenceTimers (s ^. persistenceFile) (s ^. persistenceFile . timersPersisted) timer
+    updatePersistenceTimers (s ^. persistenceFile) timer
 
     when (s ^. timerL == 0) $ do
         stopTimer
@@ -321,11 +321,10 @@ shouldSavePersistence currentPersistenceFile currentTimer timerEnded
     | (currentTimer == ShortBreak || currentTimer == LongBreak) && (currentPersistenceFile ^.  breakTimePersisted `mod` 30 == 0) = True
     | otherwise = False
 
-updatePersistenceTimers :: PersistenceFile -> Timers -> Timer -> EventM Name AppState ()
-updatePersistenceTimers currentPersistenceFile currentTimers timerFocus = do
-    if timerFocus == Pomodoro && (currentTimers ^. pomodoroState . timerCurrentValue) > 0 then updatePersistenceFileState focusedTimePersisted $ (currentPersistenceFile ^.  focusedTimePersisted) + 1
+updatePersistenceTimers :: PersistenceFile -> Timer -> EventM Name AppState ()
+updatePersistenceTimers currentPersistenceFile timerFocus = do
+    if timerFocus == Pomodoro && (currentPersistenceFile ^. timersPersisted . pomodoroState . timerCurrentValue) > 0 then updatePersistenceFileState focusedTimePersisted $ (currentPersistenceFile ^.  focusedTimePersisted) + 1
     else updatePersistenceFileState breakTimePersisted $ (currentPersistenceFile ^. breakTimePersisted) + 1
-    updatePersistenceFileState timersPersisted currentTimers
 
 updatePersistenceFileState :: Lens' PersistenceFile v -> v -> EventM Name AppState ()
 updatePersistenceFileState pLens newValue = persistenceFile . pLens .= newValue

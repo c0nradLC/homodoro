@@ -17,7 +17,7 @@ in
     nativeBuildInputs = (oldAttrs.nativeBuildInputs or []) ++ [ pkgs.upx ];
 
     postInstall = ''
-     upx --brute $out/bin/homodoro
+     upx --best $out/bin/homodoro
     '';
   });
   pkgs = pkgs;

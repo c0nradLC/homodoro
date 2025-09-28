@@ -102,7 +102,7 @@ handleEvent ev = do
                         (KChar 's', []) -> do
                             when ((s ^. timerStartStopSoundVolume) > 0) $ do
                                 void $ liftIO $ forkOS $ SDL.playAudio (s ^. audioCache) TimerStartStop (s ^. timerStartStopSoundVolume)
-                                timerRunning .= not (s ^. timerRunning)
+                            timerRunning .= not (s ^. timerRunning)
                             persistenceFile . timersPersisted .= (s ^. persistenceFile . timersPersisted)
                             updatedPersistence <- use persistenceFile
                             liftIO $ writePersistence updatedPersistence

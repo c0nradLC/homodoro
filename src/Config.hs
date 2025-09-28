@@ -49,7 +49,7 @@ defaultConfig = do
 xdgConfigFilePath :: IO FilePath
 xdgConfigFilePath = do
     xdgConfigPath <- D.getXdgDirectory D.XdgConfig ""
-    pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
+    pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config.json"
 
 updateConfig :: ConfigFile -> Lens' ConfigFile ConfigSetting -> ConfigSettingValue -> IO ConfigFile
 updateConfig configFile settingL newSettingValue = do

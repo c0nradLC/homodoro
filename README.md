@@ -10,6 +10,11 @@ Currently only Linux is supported.
 ### Nix
 ```$ nix-env -if https://github.com/c0nradLC/homodoro/tarball/main```
 
+### AUR
+```$ yay -S homodoro-bin ```
+
+```$ paru -S homodoro-bin ```
+
 ### Any linux distro
 Download the binary through the [Releases](https://github.com/c0nradLC/homodoro/releases). You can run it directly where it was downloaded or put it in a directory present in your `PATH`.
 

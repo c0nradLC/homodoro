@@ -327,8 +327,8 @@ updatePersistenceFileState pLens newValue = persistenceFile . pLens .= newValue
 
 alertTimerEndedWhenActive :: String -> Bool -> EventM Name AppState ()
 alertTimerEndedWhenActive alertMsg timerEndedNotificationIsActive
-    | timerEndedNotificationIsActive = liftIO $ showNotification alertMsg
-    | otherwise = return ()
+  | timerEndedNotificationIsActive = liftIO $ showNotification "Timer ended!" alertMsg
+  | otherwise = return ()
 
 handleConfigUpdate ::
     AppState ->

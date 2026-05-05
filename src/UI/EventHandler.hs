@@ -299,6 +299,11 @@ handleTimerTick s timerL popupText timer afterTickF = do
     afterTickF
 
   savePersistenceIfItShould (s ^. persistenceFile) timer (s ^. timerL == 0)
+  where
+    stopTimer = timerRunning .= False
+    tickTimer sAudioManager timerL' timerValue tickVolume = do
+      when (tickVolume > 0 && timerValue > 0) $ void $ liftIO $ forkOS $ SDL.playAudio sAudioManager TimerTick tickVolume
+      timerL' .= max (timerValue - 1) 0
 
 playAlertSoundWhenActive :: Int -> AudioCache -> EventM Name AppState ()
 playAlertSoundWhenActive alertVol currentAudioCache
@@ -349,14 +354,6 @@ fileType fileInfo = case fileInfoFileStatus fileInfo of
   Left _ -> Nothing
   Right fileStatus -> fileStatusFileType fileStatus
 
-tickTimer :: AudioCache -> Lens' AppState Int -> Int -> Int -> EventM Name AppState ()
-tickTimer sAudioManager timerL timerValue tickVolume = do
-  when (tickVolume > 0 && timerValue > 0) $ void $ liftIO $ forkOS $ SDL.playAudio sAudioManager TimerTick tickVolume
-  timerL .= max (timerValue - 1) 0
-
-stopTimer :: EventM Name AppState ()
-stopTimer = timerRunning .= False
-
 saveTask :: [Task] -> FilePath -> Text -> Task -> TaskAction -> AppState -> EventM Name AppState ()
 saveTask tasks fp taskEditorContent selectedTask action s = do
   if not (null taskEditorContent) && not (taskExists tasks taskEditorContent)
@@ -371,9 +368,9 @@ saveTask tasks fp taskEditorContent selectedTask action s = do
     else do
       clearTaskEditor action
       changeFocus TaskList s
-
-clearTaskEditor :: TaskAction -> EventM Name AppState ()
-clearTaskEditor ta = taskEditor .= editor (TaskEdit ta) (Just 5) ""
+  where
+    clearTaskEditor :: TaskAction -> EventM Name AppState ()
+    clearTaskEditor ta = taskEditor .= editor (TaskEdit ta) (Just 5) ""
 
 changeFocus :: Name -> AppState -> EventM Name AppState ()
 changeFocus nextFocus s = focus .= focusSetCurrent nextFocus (s ^. focus)

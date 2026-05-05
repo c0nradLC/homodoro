@@ -90,7 +90,7 @@ playAudio manager audio vol = do
         Mix.playLimit
           ( case audio of -- Set the play time of the Chunk in Milliseconds
               TimerTick -> 1000
-              TimerAlert -> 10000
+              TimerAlert -> 5000
               TimerStartStop -> 3000
           )
           Mix.AllChannels

@@ -7,9 +7,6 @@ homodoro is a simple TUI program to use the pomodoro technique and keep track of
 ## Installation
 Currently only Linux is supported.
 
-### Nix
-```$ nix-env -if https://github.com/c0nradLC/homodoro/tarball/main```
-
 ### AUR
 ```$ yay -S homodoro-bin ```
 
@@ -18,17 +15,17 @@ Currently only Linux is supported.
 ### Any linux distro
 Download the binary through the [Releases](https://github.com/c0nradLC/homodoro/releases). You can run it directly where it was downloaded or put it in a directory present in your `PATH`.
 
-You can also build homodoro with `nix-build` or `cabal build` or run a development shell with `nix-shell` and `cabal run`.
+You can build homodoro with `stack build`.
 
 ## Usage
 Just run `homodoro` and you should see the timers and the task list.
 
-Every time the Pomodoro timer reaches 0, the `Pomodoros` counter increases by 1, every 4th `Pomodoro` round ends, instead of switching the focus to `Short Break`, the focus will be switched to `Long Break`, everytime a `Long Break` is finished, the (hidden)counter that switches to `Long Break` on the 4th `Pomodoro` resets and the cycle starts again.
+Every time the Pomodoro timer reaches 0, a hidden `Pomodoro` counter increases by 1, every 4th `Pomodoro` round ends, instead of switching the focus to `Short Break`, it will switch to `Long Break`, everytime a `Long Break` is finished, the hidden counter resets and the cycle starts again.
 
 Other than the commands that are shown at the bottom of the terminal, you can check the [List](https://hackage.haskell.org/package/brick-2.3.1/docs/Brick-Widgets-List.html#g:3), [Editor](https://hackage.haskell.org/package/brick-2.3.1/docs/Brick-Widgets-Edit.html) and [Dialog](https://hackage.haskell.org/package/brick-2.3.1/docs/Brick-Widgets-Dialog.html) commands in the Brick documentation for each of the Widgets default commands.
 
 ## Dependencies
-homodoro depends on both `sdl2_mixer` and `libnotify` for the audios and pop-up notifications.
+homodoro depends on `sdl2_mixer` and `dbus` for the audios and pop-up notifications, respectively.
 
 ## Configuration
 ### Persistency file
@@ -58,7 +55,7 @@ homodoro looks for files named (case-insensitive) `TimerStartStop.*`, `TimerTick
 <img alt="example usage of homodoro" src="./media/homodoro-popup.gif">
 
 When enabled, a notification pop-up is shown when a timer ends.
-> The popup is shown using the [libnotify](https://hackage.haskell.org/package/libnotify) library
+> The popup is shown using the [dbus](https://hackage.haskell.org/package/dbus) library
   
 
 ## Misc

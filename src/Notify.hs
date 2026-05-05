@@ -1,21 +1,30 @@
-module Notify (showNotification)
-where
+{-# LANGUAGE OverloadedStrings #-}
 
-import Control.Monad (when)
-import Libnotify.C.Notify (notify_init, notify_is_initted)
-import Libnotify.C.NotifyNotification (
-    Timeout (Custom),
-    notify_notification_new,
-    notify_notification_set_timeout,
-    notify_notification_show,
- )
+module Notify (showNotification) where
 
-showNotification :: String -> IO ()
-showNotification msg = do
-    _ <- notify_init "homodoro"
-    notifyInitted <- notify_is_initted
-    when notifyInitted $ do
-        notification <- notify_notification_new "homodoro" msg ""
-        notify_notification_set_timeout notification (Custom 5000)
-        _ <- notify_notification_show notification
-        return ()
+import DBus
+import DBus.Client
+import Data.Int
+import Data.Map
+import Data.Word
+
+showNotification :: String -> String -> IO ()
+showNotification summary msg = do
+  client <- connectSession
+  _ <-
+    callNoReply
+      client
+      $ (methodCall "/org/freedesktop/Notifications" "org.freedesktop.Notifications" "Notify")
+        { methodCallDestination = Just "org.freedesktop.Notifications",
+          methodCallBody =
+            [ toVariant ("homodoro" :: String), -- app_name
+              toVariant (0 :: Word32), -- replaces_id
+              toVariant ("" :: String), -- app_icon
+              toVariant summary, -- summary
+              toVariant msg, -- body
+              toVariant ([[]] :: [String]), -- actions
+              toVariant (empty :: Map String Variant), -- hints
+              toVariant (-1 :: Int32) -- expiry (-1 for dependent)
+            ]
+        }
+  return ()

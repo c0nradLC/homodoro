@@ -1,9 +1,9 @@
-module Persistence (
-    xdgPersistenceFilePath,
+module Persistence
+  ( xdgPersistenceFilePath,
     defaultPersistence,
     writePersistence,
     readPersistence,
-)
+  )
 where
 
 import Data.Aeson (decode, encode)
@@ -15,35 +15,35 @@ import Types (PersistenceFile (..), Timer (Pomodoro), TimerState (..), Timers (.
 
 defaultPersistence :: (Int, Int, Int) -> IO PersistenceFile
 defaultPersistence (pomodoroTimer, shortBreakTimer, longBreakTimer) = do
-    zonedTime <- getZonedTime
-    return
-        PersistenceFile
-            { _datePersisted = localDay (zonedTimeToLocalTime zonedTime)
-            , _timersPersisted =
-                Timers
-                    { _pomodoroState = TimerState{_timerCurrentValue = pomodoroTimer, _timerInitialValue = pomodoroTimer}
-                    , _shortBreakState = TimerState{_timerCurrentValue = shortBreakTimer, _timerInitialValue = shortBreakTimer}
-                    , _longBreakState = TimerState{_timerCurrentValue = longBreakTimer, _timerInitialValue = longBreakTimer}
-                    , _timerCurrentFocus = Pomodoro
-                    }
-            , _pomodoroRoundsPersisted = 0
-            , _focusedTimePersisted = 0
-            , _breakTimePersisted = 0
-            }
+  zonedTime <- getZonedTime
+  return
+    PersistenceFile
+      { _datePersisted = localDay (zonedTimeToLocalTime zonedTime),
+        _timersPersisted =
+          Timers
+            { _pomodoroState = TimerState {_timerCurrentValue = pomodoroTimer, _timerInitialValue = pomodoroTimer},
+              _shortBreakState = TimerState {_timerCurrentValue = shortBreakTimer, _timerInitialValue = shortBreakTimer},
+              _longBreakState = TimerState {_timerCurrentValue = longBreakTimer, _timerInitialValue = longBreakTimer},
+              _timerCurrentFocus = Pomodoro
+            },
+        _pomodoroRoundsPersisted = 0,
+        _focusedTimePersisted = 0,
+        _breakTimePersisted = 0
+      }
 
 xdgPersistenceFilePath :: IO FilePath
 xdgPersistenceFilePath = do
-    xdgDataPath <- D.getXdgDirectory D.XdgData ""
-    zonedTime <- getZonedTime
-    pure $ xdgDataPath FP.</> "homodoro/data" FP.</> (show (localDay (zonedTimeToLocalTime zonedTime)) <> "_data.json")
+  xdgDataPath <- D.getXdgDirectory D.XdgData ""
+  zonedTime <- getZonedTime
+  pure $ xdgDataPath FP.</> "homodoro/data" FP.</> (show (localDay (zonedTimeToLocalTime zonedTime)) <> "_data.json")
 
 writePersistence :: PersistenceFile -> IO ()
 writePersistence pf = do
-    persistenceFilePath <- xdgPersistenceFilePath
-    writeFile persistenceFilePath $ unpack $ encode pf
+  persistenceFilePath <- xdgPersistenceFilePath
+  writeFile persistenceFilePath $ unpack $ encode pf
 
 readPersistence :: (Int, Int, Int) -> IO PersistenceFile
 readPersistence initialTimerValues = do
-    persistenceFilePath <- xdgPersistenceFilePath
-    persistenceFileContent <- readFile persistenceFilePath
-    maybe (defaultPersistence initialTimerValues) return (decode $ pack persistenceFileContent)
+  persistenceFilePath <- xdgPersistenceFilePath
+  persistenceFileContent <- readFile persistenceFilePath
+  maybe (defaultPersistence initialTimerValues) return (decode $ pack persistenceFileContent)

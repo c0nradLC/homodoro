@@ -1,7 +1,7 @@
 cabal-version: 1.12
 
 name:           homodoro
-version:        0.2.0.1
+version:        0.2.1.0
 description:    Please see the README on GitHub at <https://github.com/c0nradLC/homodoro#readme>
 homepage:       https://github.com/c0nradLC/homodoro#readme
 bug-reports:    https://github.com/c0nradLC/homodoro/issues
@@ -49,7 +49,7 @@ executable homodoro
     , mtl <3
     , vector <1
     , vty <6.0
-    , libnotify <=0.2.1
+    , dbus <= 1.2.29
     , sdl2-mixer <=1.2.0.0
     , containers <= 0.6.5.1
     , time <= 1.11.1.1

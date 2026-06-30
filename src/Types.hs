@@ -53,6 +53,7 @@ module Types
     timerPopupAlert,
     timerStartStopSoundVolume,
     timerStartStopSoundVolumeConfigDialog,
+    isSoundMuted,
     pomodoroState,
     shortBreakState,
     longBreakState,
@@ -64,6 +65,7 @@ module Types
     persistenceFile,
     focusedTimePersisted,
     breakTimePersisted,
+    isSoundMutedPersisted,
   )
 where
 
@@ -224,6 +226,7 @@ data AppState = AppState
     _timerAlertSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice,
     _timerTickSoundVolume :: Int,
     _timerTickSoundVolumeConfigDialog :: Dialog SoundVolumeDialogChoice,
+    _isSoundMuted :: Bool,
     _audioDirectoryPath :: FilePath,
     _audioDirectoryPathBrowser :: FileBrowser Name,
     _audioCache :: AudioCache,

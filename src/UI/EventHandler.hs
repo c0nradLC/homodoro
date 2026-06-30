@@ -27,7 +27,7 @@ import Notify (showNotification)
 import Persistence (writePersistence)
 import qualified SDL
 import Task (mkTask, readTasks, taskExists, updateTaskList, writeTasks)
-import Types (AppState (), Audio (..), AudioCache, ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), PersistenceFile, SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioCache, audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, breakTimePersisted, configFile, configList, configValue, focus, focusedTimePersisted, initialTimerConfigDialog, longBreakState, persistenceFile, pomodoroCyclesCounter, pomodoroRoundsPersisted, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentFocus, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timersPersisted)
+import Types (AppState (), Audio (..), AudioCache, ConfigFile, ConfigSetting (ConfigSetting, _configLabel, _configValue), ConfigSettingValue (..), InitialTimerDialogChoice (..), Name (..), PersistenceFile (..), SoundVolumeDialogChoice (CloseSoundVolumeDialog, PlayTestAudio, SaveSoundVolume), Task, TaskAction (Edit, Insert), TaskListOperation (AppendTask, ChangeTaskCompletion, DeleteTask, EditTask), Tick (Tick), Timer (LongBreak, Pomodoro, ShortBreak), TimerState (..), audioCache, audioDirectoryPath, audioDirectoryPathBrowser, audioDirectoryPathSetting, breakTimePersisted, configFile, configList, configValue, focus, focusedTimePersisted, initialTimerConfigDialog, isSoundMuted, isSoundMutedPersisted, longBreakState, persistenceFile, pomodoroCyclesCounter, pomodoroRoundsPersisted, pomodoroState, shortBreakState, taskContent, taskEditor, taskList, tasksFilePathBrowser, tasksFilePathSetting, timerAlertSoundVolume, timerAlertSoundVolumeConfigDialog, timerAlertSoundVolumeSetting, timerCurrentFocus, timerCurrentValue, timerInitialValue, timerPopupAlert, timerPopupAlertSetting, timerRunning, timerStartStopSoundVolume, timerStartStopSoundVolumeConfigDialog, timerStartStopSoundVolumeSetting, timerTickSoundVolume, timerTickSoundVolumeConfigDialog, timerTickSoundVolumeSetting, timersPersisted)
 import UI.Config (initialTimerDialog, soundVolumeDialog)
 import Prelude hiding (null, unlines)
 
@@ -99,7 +99,7 @@ handleEvent ev = do
                 SDL.closeSDL
               halt
             (KChar 's', []) -> do
-              when ((s ^. timerStartStopSoundVolume) > 0) $ do
+              when (not (s ^. isSoundMuted) && (s ^. timerStartStopSoundVolume) > 0) $ do
                 void $ liftIO $ forkOS $ SDL.playAudio (s ^. audioCache) TimerStartStop (s ^. timerStartStopSoundVolume)
               timerRunning .= not (s ^. timerRunning)
               updatedPersistence <- use persistenceFile
@@ -119,6 +119,12 @@ handleEvent ev = do
             (KDown, [MCtrl]) -> do
               let updatedTaskList = moveForward selectedIndex currentTasks
               taskList .= listReplace (fromList updatedTaskList) (Just $ min (selectedIndex + 1) (length currentTasks - 1)) (s ^. taskList)
+            (KChar 'm', []) -> do
+              let newSoundMutedValue = not (s ^. isSoundMuted)
+              isSoundMuted .= newSoundMutedValue
+              persistenceFile . isSoundMutedPersisted .= newSoundMutedValue
+              updatedPersistenceFile <- use persistenceFile
+              liftIO $ writePersistence updatedPersistenceFile
             _ -> zoom taskList $ handleListEventVi handleListEvent vev
         Just Config -> do
           case (k, ms) of
@@ -298,7 +304,7 @@ handleTimerTick s timerL popupText timer afterTickF = do
   when (s ^. timerL == 0) $ do
     stopTimer
 
-    playAlertSoundWhenActive (s ^. timerAlertSoundVolume) (s ^. audioCache)
+    playAlertSoundWhenActive (s ^. isSoundMuted) (s ^. timerAlertSoundVolume) (s ^. audioCache)
     alertTimerEndedWhenActive popupText $ configBoolValue $ s ^. (configFile . timerPopupAlertSetting)
 
     resetTimer s timer
@@ -308,12 +314,12 @@ handleTimerTick s timerL popupText timer afterTickF = do
   where
     stopTimer = timerRunning .= False
     tickTimer sAudioManager timerL' timerValue tickVolume = do
-      when (tickVolume > 0 && timerValue > 0) $ void $ liftIO $ forkOS $ SDL.playAudio sAudioManager TimerTick tickVolume
+      when (not (s ^. isSoundMuted) && tickVolume > 0 && timerValue > 0) $ void $ liftIO $ forkOS $ SDL.playAudio sAudioManager TimerTick tickVolume
       timerL' .= max (timerValue - 1) 0
 
-playAlertSoundWhenActive :: Int -> AudioCache -> EventM Name AppState ()
-playAlertSoundWhenActive alertVol currentAudioCache
-  | alertVol > 0 = void $ liftIO $ forkOS $ SDL.playAudio currentAudioCache TimerAlert alertVol
+playAlertSoundWhenActive :: Bool -> Int -> AudioCache -> EventM Name AppState ()
+playAlertSoundWhenActive isMuted alertVol currentAudioCache
+  | not isMuted && alertVol > 0 = void $ liftIO $ forkOS $ SDL.playAudio currentAudioCache TimerAlert alertVol
   | otherwise = return ()
 
 savePersistenceIfItShould :: PersistenceFile -> Timer -> Bool -> EventM Name AppState ()

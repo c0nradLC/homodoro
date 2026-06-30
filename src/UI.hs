@@ -13,6 +13,7 @@ import Brick
     showFirstCursor,
     str,
     strWrap,
+    withAttr,
     (<+>),
     (<=>),
   )
@@ -60,6 +61,8 @@ import Types
     focus,
     focusedTimePersisted,
     initialTimerConfigDialog,
+    isSoundMuted,
+    isSoundMutedPersisted,
     longBreakInitialTimerSetting,
     longBreakState,
     persistenceFile,
@@ -86,6 +89,8 @@ import Types
   )
 import UI.Attributes
   ( attributes,
+    defaultTextAttr,
+    strikeThroughTextAttr,
   )
 import UI.Config (drawConfigList, drawInitialTimerDialog, drawSoundVolumeDialog, initialTimerDialog, soundVolumeDialog)
 import UI.EventHandler (handleEvent)
@@ -158,6 +163,7 @@ createAppState = do
               _timerAlertSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer alert sound volume"),
               _timerTickSoundVolume = setTimerTickSoundVolume,
               _timerTickSoundVolumeConfigDialog = soundVolumeDialog (Just "Timer tick sound volume"),
+              _isSoundMuted = currentPersistenceFile ^. isSoundMutedPersisted,
               _audioDirectoryPath = setAudioDirectoryPath,
               _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser,
               _audioCache = initialAudioManager,
@@ -241,23 +247,28 @@ drawUI s = do
       ]
     currentFocus ->
       [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
-  where
-    drawHeader state =
-      do
-        str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
-        <=> str
+
+drawHeader :: AppState -> Widget Name
+drawHeader state =
+  do
+    str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
+    <=> withAttr
+      (if state ^. isSoundMuted then strikeThroughTextAttr else defaultTextAttr)
+      ( str
           ( "Timer tick volume: "
               ++ soundVolumePercentage (state ^. timerTickSoundVolume)
           )
-        <=> str
-          ( "Timer alert volume: "
-              ++ soundVolumePercentage (state ^. timerAlertSoundVolume)
-          )
-        <=> str
-          ( "Timer start/stop volume: "
-              ++ soundVolumePercentage (state ^. timerStartStopSoundVolume)
-          )
-        <+> padLeft Max (str ("Focused time today: " ++ formatTimer (state ^. persistenceFile . focusedTimePersisted)))
+          <=> str
+            ( "Timer alert volume: "
+                ++ soundVolumePercentage (state ^. timerAlertSoundVolume)
+            )
+          <=> str
+            ( "Timer start/stop volume: "
+                ++ soundVolumePercentage (state ^. timerStartStopSoundVolume)
+            )
+      )
+    <+> padLeft Max (str ("Focused time today: " ++ formatTimer (state ^. persistenceFile . focusedTimePersisted)))
+
 drawCommands :: Maybe Name -> Widget Name
 drawCommands currentFocus =
   case currentFocus of

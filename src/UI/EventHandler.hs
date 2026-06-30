@@ -113,6 +113,12 @@ handleEvent ev = do
                 ShortBreak -> persistenceFile . timersPersisted . timerCurrentFocus .= LongBreak
                 LongBreak -> persistenceFile . timersPersisted . timerCurrentFocus .= Pomodoro
             (KChar 'p', []) -> changeFocus Config s
+            (KUp, [MCtrl]) -> do
+              let updatedTaskList = moveBackward selectedIndex currentTasks
+              taskList .= listReplace (fromList updatedTaskList) (Just $ selectedIndex - 1) (s ^. taskList)
+            (KDown, [MCtrl]) -> do
+              let updatedTaskList = moveForward selectedIndex currentTasks
+              taskList .= listReplace (fromList updatedTaskList) (Just $ min (selectedIndex + 1) (length currentTasks - 1)) (s ^. taskList)
             _ -> zoom taskList $ handleListEventVi handleListEvent vev
         Just Config -> do
           case (k, ms) of

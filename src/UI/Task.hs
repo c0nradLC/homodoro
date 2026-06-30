@@ -1,3 +1,4 @@
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module UI.Task (drawTaskEditor, drawTaskList) where
@@ -10,7 +11,7 @@ import qualified Brick.Widgets.Center as C
 import Brick.Widgets.Edit (renderEditor)
 import qualified Brick.Widgets.List as BL
 import Control.Lens ((^.))
-import Data.Text (Text, unlines)
+import qualified Data.Text as T
 import Types (
     AppState,
     Name (TaskEdit),
@@ -30,8 +31,8 @@ drawTaskEditor s =
             B.borderWithLabel (str "Task") $
                 renderEditor drawTaskEditorContent (BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Insert) || BF.focusGetCurrent (s ^. focus) == Just (TaskEdit Edit)) (s ^. taskEditor)
 
-drawTaskEditorContent :: [Text] -> Widget Name
-drawTaskEditorContent t = txt (unlines t)
+drawTaskEditorContent :: [T.Text] -> Widget Name
+drawTaskEditorContent t = txt $ T.unlines t
 
 drawTaskList :: BL.List Name Task -> Widget Name
 drawTaskList tasks = do
@@ -42,8 +43,7 @@ drawTaskListItem :: Bool -> Task -> Widget Name
 drawTaskListItem sel task
     | sel =
         withAttr selectedTaskAttr $
-            padLeft (Pad 1) $
-                taskListItem task sel
+        taskListItem task sel
     | otherwise =
         taskListItem task sel
 

@@ -38,8 +38,7 @@ executable homodoro
      ,src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson <3
-    , base >=4.7 && <5
+    base >=4.7 && <5
     , brick <2
     , text <1.3
     , bytestring <= 0.11.4.0

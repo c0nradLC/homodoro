@@ -38,8 +38,6 @@ import Control.Monad.State
     unless,
     void,
   )
-import Data.Aeson (encode)
-import Data.ByteString.Lazy.Char8 (unpack)
 import Data.IORef (newIORef)
 import qualified Data.Map as Map
 import qualified Data.Vector as DV
@@ -289,7 +287,7 @@ createProgramFileAndDirectoriesIfNotExists = do
   configFile <- if configFileExists then readConfigFile else defaultConfig
   unless configFileExists $ do
     let tasksFilePath = configFilePathValue $ defaultConfigFile ^. tasksFilePathSetting
-    writeFile configFilePath $ unpack $ encode defaultConfigFile
+    writeFile configFilePath $ show defaultConfigFile
     D.createDirectoryIfMissing True $ configFilePathValue $ defaultConfigFile ^. audioDirectoryPathSetting
     D.createDirectoryIfMissing True (FP.takeDirectory $ configFilePathValue $ defaultConfigFile ^. audioDirectoryPathSetting)
     taskFileExists <- D.doesFileExist tasksFilePath

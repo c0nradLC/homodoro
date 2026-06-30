@@ -12,13 +12,9 @@ where
 import Control.Exception (SomeException (..), try)
 import Control.Lens (filtered, over, traversed, view, (%~), (.~), (^.))
 import Control.Monad (when)
-import Data.Aeson (decodeStrict)
-import Data.Aeson.Text (encodeToLazyText)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, drop, dropWhile, dropWhileEnd, isInfixOf, isPrefixOf, lines, pack, unlines)
-import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
-import qualified Data.Text.Lazy as TL (toStrict)
 import System.Exit (exitFailure)
 import System.FilePath (takeExtension)
 import Types (Task (..), TaskListOperation (..), taskCompleted, taskContent)
@@ -42,7 +38,6 @@ taskExists tasks content =
 writeTasks :: FilePath -> [Task] -> IO [Task]
 writeTasks fp tasks = do
   case takeExtension fp of
-    ".json" -> TIO.writeFile fp $ TL.toStrict $ encodeToLazyText tasks
     ".md" -> TIO.writeFile fp $ encodeMarkdownTasks tasks
     _ -> return ()
   return tasks
@@ -51,9 +46,6 @@ readTasks :: FilePath -> IO [Task]
 readTasks fp = do
   taskFileContent <- readTaskFile fp
   case takeExtension fp of
-    ".json" -> case decodeStrict $ encodeUtf8 taskFileContent of
-      Just tasks -> return tasks
-      Nothing -> return []
     ".md" -> return $ decodeMarkdownTasks taskFileContent
     _ -> return []
 

@@ -73,7 +73,6 @@ import Brick.Widgets.Edit (Editor)
 import Brick.Widgets.FileBrowser (FileBrowser)
 import qualified Brick.Widgets.List as BL
 import Control.Lens (makeLenses)
-import Data.Aeson.TH (defaultOptions, deriveJSON)
 import Data.IORef (IORef)
 import Data.Map (Map)
 import Data.Text (Text)
@@ -84,18 +83,15 @@ data Timer
   = Pomodoro
   | ShortBreak
   | LongBreak
-  deriving (Show, Eq, Ord)
-
-deriveJSON defaultOptions ''Timer
+  deriving (Show, Read, Eq, Ord)
 
 data TimerState = TimerState
   { _timerCurrentValue :: Int,
     _timerInitialValue :: Int
   }
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 makeLenses ''TimerState
-deriveJSON defaultOptions ''TimerState
 
 data Timers = Timers
   { _pomodoroState :: TimerState,
@@ -103,10 +99,9 @@ data Timers = Timers
     _longBreakState :: TimerState,
     _timerCurrentFocus :: Timer
   }
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 makeLenses ''Timers
-deriveJSON defaultOptions ''Timers
 
 data InitialTimerDialogChoice
   = SaveInitialTimer
@@ -151,7 +146,6 @@ data Task = Task
     _taskCompleted :: Bool
   }
 
-deriveJSON defaultOptions ''Task
 makeLenses ''Task
 
 instance Eq Task where
@@ -173,19 +167,17 @@ data ConfigSettingValue
   | ConfigTimerAlertSoundVolume Int
   | ConfigTimerTickSoundVolume Int
   | ConfigAudioDirectoryPath FilePath
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 makeLenses ''ConfigSettingValue
-deriveJSON defaultOptions ''ConfigSettingValue
 
 data ConfigSetting = ConfigSetting
   { _configLabel :: String,
     _configValue :: ConfigSettingValue
   }
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 makeLenses ''ConfigSetting
-deriveJSON defaultOptions ''ConfigSetting
 
 data ConfigFile = ConfigFile
   { _pomodoroInitialTimerSetting :: ConfigSetting,
@@ -198,22 +190,21 @@ data ConfigFile = ConfigFile
     _timerTickSoundVolumeSetting :: ConfigSetting,
     _audioDirectoryPathSetting :: ConfigSetting
   }
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 makeLenses ''ConfigFile
-deriveJSON defaultOptions ''ConfigFile
 
 data PersistenceFile = PersistenceFile
   { _datePersisted :: Day,
     _timersPersisted :: Timers,
     _pomodoroRoundsPersisted :: Int,
     _focusedTimePersisted :: Int,
-    _breakTimePersisted :: Int
+    _breakTimePersisted :: Int,
+    _isSoundMutedPersisted :: Bool
   }
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 makeLenses ''PersistenceFile
-deriveJSON defaultOptions ''PersistenceFile
 
 data AppState = AppState
   { _timerRunning :: Bool,

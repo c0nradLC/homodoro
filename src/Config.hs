@@ -22,9 +22,9 @@ where
 import qualified Control.Applicative as FP
 import Control.Lens (Lens', (&), (.~))
 import Control.Lens.Getter ((^.))
-import Data.Aeson (decode, encode)
-import Data.ByteString.Lazy.Char8 (pack, unpack)
+import Text.Read (readMaybe)
 import Data.List (find)
+import Data.Maybe (fromMaybe)
 import qualified System.Directory as D
 import qualified System.FilePath as FP
 import Types (ConfigFile (..), ConfigSetting (..), ConfigSettingValue (..), Timer (..), audioDirectoryPathSetting, configValue, longBreakInitialTimerSetting, pomodoroInitialTimerSetting, shortBreakInitialTimerSetting, tasksFilePathSetting, timerAlertSoundVolumeSetting, timerPopupAlertSetting, timerStartStopSoundVolumeSetting, timerTickSoundVolumeSetting)
@@ -49,7 +49,7 @@ defaultConfig = do
 xdgConfigFilePath :: IO FilePath
 xdgConfigFilePath = do
   xdgConfigPath <- D.getXdgDirectory D.XdgConfig ""
-  pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config.json"
+  pure $ xdgConfigPath FP.</> "homodoro" FP.</> "config"
 
 updateConfig :: ConfigFile -> Lens' ConfigFile ConfigSetting -> ConfigSettingValue -> IO ConfigFile
 updateConfig configFile settingL newSettingValue = do
@@ -60,14 +60,14 @@ updateConfig configFile settingL newSettingValue = do
 writeConfig :: ConfigFile -> IO ()
 writeConfig cfg = do
   configFilePath <- xdgConfigFilePath
-  writeFile configFilePath $ unpack $ encode cfg
+  writeFile configFilePath $ show cfg
 
 readConfigFile :: IO ConfigFile
 readConfigFile = do
   configFilePath <- xdgConfigFilePath
   configFileContent <- readFile configFilePath
-  maybe defaultConfig return (decode $ pack configFileContent)
-
+  maybe defaultConfig return $ readMaybe configFileContent
+    
 readTasksFilePath :: IO FilePath
 readTasksFilePath = do
   configFile <- readConfigFile

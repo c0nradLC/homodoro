@@ -384,5 +384,15 @@ saveTask tasks fp taskEditorContent selectedTask action s = do
     clearTaskEditor :: TaskAction -> EventM Name AppState ()
     clearTaskEditor ta = taskEditor .= editor (TaskEdit ta) (Just 5) ""
 
+moveForward :: Int -> [a] -> [a]
+moveForward i xs
+  | i < 0 || i >= length xs - 1 = xs
+  | otherwise = take i xs ++ [xs !! (i + 1), xs !! i] ++ drop (i + 2) xs
+
+moveBackward :: Int -> [a] -> [a]
+moveBackward i xs
+  | i <= 0 || i >= length xs = xs
+  | otherwise = take (i - 1) xs ++ [xs !! i, xs !! (i - 1)] ++ drop (i + 1) xs
+
 changeFocus :: Name -> AppState -> EventM Name AppState ()
 changeFocus nextFocus s = focus .= focusSetCurrent nextFocus (s ^. focus)

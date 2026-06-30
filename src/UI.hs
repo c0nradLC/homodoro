@@ -242,23 +242,6 @@ drawUI s = do
     currentFocus ->
       [B.border (C.center $ drawHeader s <=> drawTimers s <=> drawTaskList (s ^. taskList)) <=> drawCommands currentFocus]
   where
-    drawCommands currentFocus =
-      case currentFocus of
-        Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [INS]: create task"
-        Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [INS]: save task"
-        Just TaskList ->
-          strWrap
-            "[Q]: quit, [S]: start/stop timer, [R]: reset timer, [SHIFT + TAB]: next timer, \
-            \[T]: add task, [E]: edit task, [Ctrl + C]: toggle task status, \
-            \[P]: config menu"
-        Just Config -> str "[ESC|Q]: return, [ENTER]: select/toggle setting"
-        Just TasksFilePathBrowser ->
-          strWrap
-            "[ESC|Q]: close, [ENTER]: choose selection, [/]: search"
-        Just AudioDirectoryPathBrowser ->
-          strWrap
-            "[ESC|Q]: close, [C]: choose selection, [SHIFT + C]: choose current directory, [/]: search"
-        _ -> emptyWidget
     drawHeader state =
       do
         str ("Timer popup: " ++ showBool (state ^. timerPopupAlert))
@@ -275,6 +258,24 @@ drawUI s = do
               ++ soundVolumePercentage (state ^. timerStartStopSoundVolume)
           )
         <+> padLeft Max (str ("Focused time today: " ++ formatTimer (state ^. persistenceFile . focusedTimePersisted)))
+drawCommands :: Maybe Name -> Widget Name
+drawCommands currentFocus =
+  case currentFocus of
+    Just (TaskEdit Insert) -> strWrap "[ESC]: cancel task creation, [INS]: create task"
+    Just (TaskEdit Edit) -> strWrap "[ESC]: cancel task edit, [INS]: save task"
+    Just TaskList ->
+      strWrap
+        "[q]: quit, [s]: start/stop timer, [r]: reset timer, [SHIFT + TAB]: next timer, \
+        \[t]: add task, [e]: edit task, [Ctrl + c]: toggle task status, \
+        \[p]: config menu"
+    Just Config -> str "[ESC|q]: return, [ENTER]: select/toggle setting"
+    Just TasksFilePathBrowser ->
+      strWrap
+        "[ESC|q]: close, [ENTER]: choose selection, [/]: search"
+    Just AudioDirectoryPathBrowser ->
+      strWrap
+        "[ESC|q]: close, [c]: choose selection, [SHIFT + c]: choose current directory, [/]: search"
+    _ -> emptyWidget
 
 createProgramFileAndDirectoriesIfNotExists :: IO ()
 createProgramFileAndDirectoriesIfNotExists = do

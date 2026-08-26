@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE BangPatterns #-}
 
 module UI.EventHandler (handleEvent) where
 
-import Brick (BrickEvent (AppEvent, VtyEvent), EventM, halt, zoom, continueWithoutRedraw, gets)
+import Brick (BrickEvent (AppEvent, VtyEvent), EventM, halt, zoom, continueWithoutRedraw)
 import Brick.Focus (focusGetCurrent, focusSetCurrent)
 import Brick.Widgets.Dialog (dialogSelection, handleDialogEvent)
 import Brick.Widgets.Edit (editor, getEditContents, handleEditorEvent)
@@ -33,13 +32,13 @@ import UI.Config (initialTimerDialog, soundVolumeDialog)
 import Prelude hiding (null, unlines)
 
 handleEvent :: BrickEvent Name Tick -> EventM Name AppState ()
-handleEvent !ev = do
-  !s <- get
-  let !currentFocus = focusGetCurrent $ s ^. focus
+handleEvent ev = do
+  s <- get
+  let currentFocus = focusGetCurrent $ s ^. focus
   case ev of
     (AppEvent Tick) -> do
-      let !currentTimer = s ^. persistenceFile . timersPersisted . timerCurrentFocus
-      !timerIsRunning <- use timerRunning
+      let currentTimer = s ^. persistenceFile . timersPersisted . timerCurrentFocus
+      timerIsRunning <- use timerRunning
       case currentFocus of
             Just TaskList ->
               when timerIsRunning $
@@ -103,11 +102,11 @@ handleEvent !ev = do
                 cleanupNotificationManager notificationMgr
               halt
             (KChar 's', []) -> do
-              !soundIsMuted <- use isSoundMuted
-              !startStopSoundVolume <- use timerStartStopSoundVolume
-              !stateAudioCache <- use audioCache
-              !timerIsRunning <- use timerRunning
-              !updatedPersistence <- use persistenceFile
+              soundIsMuted <- use isSoundMuted
+              startStopSoundVolume <- use timerStartStopSoundVolume
+              stateAudioCache <- use audioCache
+              timerIsRunning <- use timerRunning
+              updatedPersistence <- use persistenceFile
               when (not soundIsMuted && startStopSoundVolume > 0) $ do
                 void $ liftIO $ forkIO $ SDL.playAudio stateAudioCache TimerStartStop startStopSoundVolume
               timerRunning .= not timerIsRunning

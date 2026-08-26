@@ -24,7 +24,7 @@ import Control.Monad.State (MonadIO (liftIO), MonadState (..), void, when)
 import Data.Text (Text, null, unlines)
 import Data.Vector (fromList, toList, force)
 import Graphics.Vty (Event (EvKey), Key (..), Modifier (..))
-import Notify (showNotification)
+import Notify (showNotification, cleanupNotificationManager)
 import Persistence (writePersistence)
 import qualified SDL
 import Task (mkTask, readTasks, taskExists, updateTaskList, writeTasks)
@@ -51,12 +51,12 @@ handleEvent !ev = do
                       if (s ^. pomodoroCyclesCounter) == 3
                         then do
                           persistenceFile . timersPersisted . timerCurrentFocus .= LongBreak
+                          pomodoroCyclesCounter .= 0
                         else persistenceFile . timersPersisted . timerCurrentFocus .= ShortBreak
                       updatedPersistence <- use persistenceFile
                       liftIO $ writePersistence updatedPersistence
                   ShortBreak -> handleTimerTick s (persistenceFile . timersPersisted . shortBreakState . timerCurrentValue) "Short break ended!" currentTimer (persistenceFile . timersPersisted . timerCurrentFocus .= Pomodoro)
                   LongBreak -> handleTimerTick s (persistenceFile . timersPersisted . longBreakState . timerCurrentValue) "Long break ended!" currentTimer $ do
-                    pomodoroCyclesCounter .= 0
                     persistenceFile . timersPersisted . timerCurrentFocus .= Pomodoro
             _ -> continueWithoutRedraw
     (VtyEvent vev@(EvKey k ms)) -> do
@@ -96,9 +96,11 @@ handleEvent !ev = do
                     else taskList .= listReplace (force $ fromList updatedTaskList) (Just $ length updatedTaskList - 1) (s ^. taskList)
             (KChar 't', []) -> changeFocus (TaskEdit Insert) s
             (KChar 'q', []) -> do
+              notificationMgr <- use notificationManager
               liftIO $ do
                 SDL.cleanupAudio (s ^. audioCache)
                 SDL.closeSDL
+                cleanupNotificationManager notificationMgr
               halt
             (KChar 's', []) -> do
               !soundIsMuted <- use isSoundMuted

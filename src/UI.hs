@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 module UI (uiMain) where
 
@@ -96,6 +97,7 @@ import UI.Config (drawConfigList, drawInitialTimerDialog, drawSoundVolumeDialog,
 import UI.EventHandler (handleEvent)
 import UI.Task (drawTaskEditor, drawTaskList)
 import UI.Timer (drawTimers, formatTimer)
+import Notify (newNotificationManager)
 
 uiMain :: IO ()
 uiMain = do
@@ -129,6 +131,7 @@ createAppState = do
         currentPersistenceFile <- readPersistence (setPomodoroInitialTimer, setShortBreakInitialTimer, setLongBreakInitialTimer)
         initialTasksFilePathBrowser <- newFileBrowser selectNonDirectories TasksFilePathBrowser $ Just setTasksFilePath
         initialAudioDirectoryPathBrowser <- newFileBrowser selectNonDirectories AudioDirectoryPathBrowser $ Just setAudioDirectoryPath
+        notificationMgr <- newNotificationManager
         void $ preloadAllAudio initialAudioManager setAudioDirectoryPath
         return
           AppState
@@ -150,8 +153,8 @@ createAppState = do
                     TimerStartStopSoundVolumeDialog,
                     AudioDirectoryPathBrowser
                   ],
-              _taskList = BL.list TaskList (DV.fromList tasks) 1,
-              _configList = BL.list Config (DV.fromList $ configFileSettings configFile) 1,
+              _taskList = BL.list TaskList (DV.force $ DV.fromList tasks) 1,
+              _configList = BL.list Config (DV.force $ DV.fromList $ configFileSettings configFile) 1,
               _configFile = configFile,
               _initialTimerConfigDialog = initialTimerDialog Pomodoro,
               _tasksFilePath = setTasksFilePath,
@@ -167,7 +170,8 @@ createAppState = do
               _audioDirectoryPath = setAudioDirectoryPath,
               _audioDirectoryPathBrowser = initialAudioDirectoryPathBrowser,
               _audioCache = initialAudioManager,
-              _persistenceFile = currentPersistenceFile
+              _persistenceFile = currentPersistenceFile,
+              _notificationManager = notificationMgr
             }
 
 app :: App AppState Tick Name

@@ -66,6 +66,7 @@ module Types
     focusedTimePersisted,
     breakTimePersisted,
     isSoundMutedPersisted,
+    notificationManager
   )
 where
 
@@ -80,6 +81,7 @@ import Data.Map (Map)
 import Data.Text (Text)
 import Data.Time (Day)
 import qualified SDL.Mixer as Mix
+import Notify (NotificationManager)
 
 data Timer
   = Pomodoro
@@ -230,7 +232,8 @@ data AppState = AppState
     _audioDirectoryPath :: FilePath,
     _audioDirectoryPathBrowser :: FileBrowser Name,
     _audioCache :: AudioCache,
-    _persistenceFile :: PersistenceFile
+    _persistenceFile :: PersistenceFile,
+    _notificationManager :: NotificationManager
   }
 
 makeLenses ''AppState

@@ -93,7 +93,7 @@ playAudio manager audio vol = do
               TimerAlert -> 5000
               TimerStartStop -> 3000
           )
-          Mix.AllChannels
+          0
           1
           audioF
       return ()
